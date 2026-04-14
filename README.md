@@ -167,6 +167,31 @@ npm run batch -- --input-dir articles/corpus_txts --no-skip-existing
 
 失败文件会记录到：`outputs/batch-errors.log`。
 
+## 5.2 批量把 outputs 导入 SQLite
+
+当 `outputs` 里已有很多 `*-output.json` 时，可以一次性导入：
+
+```bash
+npm run import:outputs -- --db ./memok.sqlite
+```
+
+默认行为：
+
+- 输入目录：`outputs`
+- 只处理 `*-output.json`
+- 使用导入台账表 `imported_outputs`，默认跳过已导入文件（支持断点续跑）
+
+常用参数：
+
+```bash
+npm run import:outputs -- --input-dir outputs --db ./memok.sqlite
+npm run import:outputs -- --db ./memok.sqlite --from 0 --to 99
+npm run import:outputs -- --db ./memok.sqlite --no-skip-imported
+npm run import:outputs -- --db ./memok.sqlite --as-of 2026-04-14
+```
+
+失败文件会记录到：`outputs/import-errors.log`。
+
 ## 6. 与 Python 版对齐说明
 
 - 仅实现 v2，不实现 v1 子命令

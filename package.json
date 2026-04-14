@@ -10,7 +10,8 @@
     "build": "tsc -p tsconfig.json",
     "dev": "tsx src/cli.ts",
     "test": "vitest run",
-    "batch": "tsx src/scripts/runArticlesBatch.ts"
+    "batch": "tsx src/scripts/runArticlesBatch.ts",
+    "import:outputs": "tsx src/scripts/importOutputsToSqlite.ts"
   },
   "keywords": [],
   "author": "",
