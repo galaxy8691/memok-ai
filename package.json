@@ -6,6 +6,14 @@
   "bin": {
     "memok-ai": "dist/cli.js"
   },
+  "type": "module",
+  "openclaw": {
+    "extensions": ["./dist/plugin.js"],
+    "compat": {
+      "pluginApi": ">=2026.3.24",
+      "minGatewayVersion": "2026.3.24"
+    }
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "dev": "tsx src/cli.ts",
@@ -16,12 +24,12 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "module",
   "dependencies": {
     "better-sqlite3": "^12.9.0",
     "commander": "^14.0.3",
     "dotenv": "^17.4.2",
     "openai": "^6.34.0",
+    "openclaw": "^2026.3.24",
     "zod": "^4.3.6"
   },
   "devDependencies": {

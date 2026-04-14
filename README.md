@@ -179,14 +179,13 @@ npm run import:outputs -- --db ./memok.sqlite
 
 - 输入目录：`outputs`
 - 只处理 `*-output.json`
-- 使用导入台账表 `imported_outputs`，默认跳过已导入文件（支持断点续跑）
+- 每次都会导入选中的文件（允许 `sentences` 重复）
 
 常用参数：
 
 ```bash
 npm run import:outputs -- --input-dir outputs --db ./memok.sqlite
 npm run import:outputs -- --db ./memok.sqlite --from 0 --to 99
-npm run import:outputs -- --db ./memok.sqlite --no-skip-imported
 npm run import:outputs -- --db ./memok.sqlite --as-of 2026-04-14
 ```
 

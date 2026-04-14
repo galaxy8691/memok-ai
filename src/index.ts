@@ -6,3 +6,4 @@ export * from "./v2/articleSentences.js";
 export * from "./v2/articleSentenceCoreCombine.js";
 export * from "./v2/articleWordPipeline.js";
 export * from "./sqlite/awpV2Import.js";
+export * from "./memory/saveTextToMemoryDb.js";
