@@ -39,14 +39,11 @@ export const MemoryExtractResponseSchema = z
 
 export type MemoryExtractResponse = z.infer<typeof MemoryExtractResponseSchema>;
 
-/** 对 `words` 全表随机抽样的默认比例（CLI / 插件未指定时使用）。 */
-export const DEFAULT_WORD_SAMPLE_FRACTION = 0.1;
-
 export type ExtractMemorySentencesOpts = {
-  /** 对 words 全表行数取样的比例，默认见 {@link DEFAULT_WORD_SAMPLE_FRACTION} */
+  /** 对 words 全表行数取样的比例，默认 0.2 */
   fraction?: number;
   /**
-   * 非短期句池上的抽样比例，默认与 fraction 相同。
+   * 非短期句池上的抽样比例，默认与 fraction 相同（例如 0.2）。
    * 抽取条数 k = max(1, round(非短期候选数 * longTermFraction))，且不超过池大小。
    */
   longTermFraction?: number;
@@ -125,7 +122,7 @@ export function extractMemorySentencesByWordSample(
   dbOrPath: Database.Database | string,
   opts?: ExtractMemorySentencesOpts,
 ): MemoryExtractResponse {
-  const fraction = opts?.fraction ?? DEFAULT_WORD_SAMPLE_FRACTION;
+  const fraction = opts?.fraction ?? 0.2;
   const longTermFraction = opts?.longTermFraction ?? fraction;
   const ownDb = typeof dbOrPath === "string";
   const db = ownDb ? new Database(dbOrPath) : dbOrPath;

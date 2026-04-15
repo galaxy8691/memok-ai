@@ -5,7 +5,6 @@ import { dirname, join } from "node:path";
 import { definePluginEntry } from "openclaw/plugin-sdk/plugin-entry";
 import { saveTextToMemoryDb } from "./memory/saveTextToMemoryDb.js";
 import {
-  DEFAULT_WORD_SAMPLE_FRACTION,
   extractMemorySentencesByWordSample,
   type MemoryExtractedSentence,
 } from "./read-memory-pipeline/extractMemorySentencesByWordSample.js";
@@ -238,7 +237,7 @@ export default definePluginEntry({
 
     const dbPath = expandUserPath(pluginCfg.dbPath || getDefaultDbPath());
     const memoryInjectEnabled = pluginCfg.memoryInjectEnabled !== false;
-    const extractFraction = pluginCfg.extractFraction ?? DEFAULT_WORD_SAMPLE_FRACTION;
+    const extractFraction = pluginCfg.extractFraction ?? 0.2;
     const longTermFraction = pluginCfg.longTermFraction ?? extractFraction;
     const maxInjectChars = Math.max(512, pluginCfg.maxInjectChars ?? 12_000);
     const memoryFeedbackLogPath = expandUserPath(

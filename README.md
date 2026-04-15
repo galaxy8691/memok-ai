@@ -211,7 +211,7 @@ npm test
 **参数：**
 
 - `--db`：SQLite 路径  
-- `--fraction`：对 `words` 全表行数抽样比例，默认 `0.1`（至少 1 行，表非空时）  
+- `--fraction`：对 `words` 全表行数抽样比例，默认 `0.2`（至少 1 行，表非空时）  
 - `--long-term-fraction`：非短期句池上的加权抽样比例，默认与 `--fraction` 相同  
 
 **语义摘要：**

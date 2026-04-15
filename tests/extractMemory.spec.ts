@@ -96,7 +96,7 @@ describe("extractMemorySentencesByWordSample", () => {
       .run("s");
     const sid = Number(sInfo.lastInsertRowid);
     db.prepare("INSERT INTO sentence_to_normal_link (normal_id, sentence_id, weight) VALUES (?, ?, 1)").run(nid, sid);
-    const out = extractMemorySentencesByWordSample(db, { fraction: 0.1 });
+    const out = extractMemorySentencesByWordSample(db, { fraction: 0.2 });
     expect(out.sentences.length).toBe(1);
     expect(out.sentences[0].is_short_term).toBe(true);
     expect(out.sentences[0].matched_word.normal_word).toBe("N");

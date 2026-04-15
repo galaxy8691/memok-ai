@@ -28,7 +28,7 @@
       "extractFraction": {
         "type": "number",
         "description": "记忆注入时对 words 表的抽样比例（同 extract-memory-sentences）",
-        "default": 0.1
+        "default": 0.2
       },
       "longTermFraction": {
         "type": "number",

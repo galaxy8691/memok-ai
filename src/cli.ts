@@ -17,10 +17,7 @@ import {
 } from "./article-word-pipeline/v2/schemas.js";
 import { articleWordPipelineV2 } from "./article-word-pipeline/v2/articleWordPipeline.js";
 import { importAwpV2TupleFromPaths } from "./sqlite/awpV2Import.js";
-import {
-  DEFAULT_WORD_SAMPLE_FRACTION,
-  extractMemorySentencesByWordSample,
-} from "./read-memory-pipeline/extractMemorySentencesByWordSample.js";
+import { extractMemorySentencesByWordSample } from "./read-memory-pipeline/extractMemorySentencesByWordSample.js";
 
 function resolvePath(p: string): string {
   return resolve(process.cwd(), p);
@@ -120,23 +117,20 @@ program
     "从 words 随机抽样→关联 sentences；输出单一 sentences：先短期全量，后非短期加权抽样",
   )
   .requiredOption("--db <path>", "sqlite 数据库路径")
-  .option(
-    "--fraction <n>",
-    `对 words 表的抽样比例（默认 ${DEFAULT_WORD_SAMPLE_FRACTION}）`,
-  )
+  .option("--fraction <n>", "对 words 表的抽样比例（默认 0.2）")
   .option("--long-term-fraction <n>", "非短期句池抽样比例（默认与 --fraction 相同）")
   .action((opts: { db: string; fraction?: string; longTermFraction?: string }) => {
     try {
       const fraction =
         opts.fraction !== undefined && opts.fraction !== ""
           ? Number.parseFloat(opts.fraction)
-          : DEFAULT_WORD_SAMPLE_FRACTION;
+          : 0.2;
       const longTermFraction =
         opts.longTermFraction !== undefined && opts.longTermFraction !== ""
           ? Number.parseFloat(opts.longTermFraction)
           : undefined;
       const out = extractMemorySentencesByWordSample(resolvePath(opts.db), {
-        fraction: Number.isFinite(fraction) ? fraction : DEFAULT_WORD_SAMPLE_FRACTION,
+        fraction: Number.isFinite(fraction) ? fraction : 0.2,
         longTermFraction:
           longTermFraction !== undefined && Number.isFinite(longTermFraction)
             ? longTermFraction
