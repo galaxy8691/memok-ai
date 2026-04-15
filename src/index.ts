@@ -7,3 +7,4 @@ export * from "./article-word-pipeline/v2/articleSentenceCoreCombine.js";
 export * from "./article-word-pipeline/v2/articleWordPipeline.js";
 export * from "./sqlite/awpV2Import.js";
 export * from "./memory/saveTextToMemoryDb.js";
+export * from "./read-memory-pipeline/extractMemorySentencesByWordSample.js";
