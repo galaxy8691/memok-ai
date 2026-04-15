@@ -13,8 +13,36 @@
       },
       "enabled": {
         "type": "boolean",
-        "description": "是否启用自动保存",
+        "description": "是否启用插件（含自动保存与记忆注入）；为 false 时整插件不注册",
         "default": true
+      },
+      "memoryInjectEnabled": {
+        "type": "boolean",
+        "description": "是否在每轮模型前注入「候选记忆」prependContext（与自动保存独立）",
+        "default": true
+      },
+      "persistTranscriptToMemory": {
+        "type": "boolean",
+        "description": "是否在每轮结束后把对话 transcript 再跑 article 管线写入 SQLite。未设置时：开启记忆注入则默认 false（避免读库注入后再整段写回污染）；关闭注入时默认 true"
+      },
+      "extractFraction": {
+        "type": "number",
+        "description": "记忆注入时对 words 表的抽样比例（同 extract-memory-sentences）",
+        "default": 0.1
+      },
+      "longTermFraction": {
+        "type": "number",
+        "description": "非短期句池加权抽样比例；默认与 extractFraction 相同"
+      },
+      "maxInjectChars": {
+        "type": "number",
+        "description": "单次注入 prependContext 的最大字符数（防止撑爆上下文）",
+        "default": 12000
+      },
+      "memoryFeedbackLogPath": {
+        "type": "string",
+        "description": "模型上报「已使用的句子 id」时追加写入的 JSONL 路径（每行一条 JSON）",
+        "default": "~/.openclaw/extensions/memok-ai/memory-feedback.jsonl"
       }
     }
   }

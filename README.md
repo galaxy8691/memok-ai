@@ -29,7 +29,8 @@
 1. **核心词**：从全文归纳原子级核心词列表。  
 2. **归一**：对核心词做同义/写法归并，得到 `original_text → new_text` 映射表。  
 3. **记忆句**：生成带编号、可独立理解的记忆句列表。  
-4. **合并**：把「句 ↔ 句内核心词」与归一词表打成 **二元组**：`[ sentence_core 块, nomalized 块 ]`（字段名见下文「数据契约」）。
+4. **合并**：把「句 ↔ 句内核心词」与归一词表打成 **二元组**：`[ sentence_core 块, nomalized 块 ]`（字段名见下文「数据契约」）。  
+5. **脱敏**：合并完成后会对二元组内所有字符串字段做 **`HEARTBEAT` / `HEARTBEAT_OK` / `HEARTBEAT.md`** 无害化，并剥离常见 **OpenClaw 心跳/定时提醒英文模板**、**`A scheduled reminder…` 块**、**「执行 HEARTBEAT.md 检查清单」中文清单**等（见 `src/utils/scrubOpenclawHeartbeatArtifacts.ts`），避免写入记忆库后在 OpenClaw 侧误触心跳语义。插件在 **`agent_end` / `message_sent` 落库前** 也会对整段 transcript 调用同一套清洗。
 
 阶段之间通过 **JSON 文件** 衔接，便于单步调试与缓存中间结果。
 
@@ -210,7 +211,7 @@ npm test
 **参数：**
 
 - `--db`：SQLite 路径  
-- `--fraction`：对 `words` 全表行数抽样比例，默认 `0.2`（至少 1 行，表非空时）  
+- `--fraction`：对 `words` 全表行数抽样比例，默认 `0.1`（至少 1 行，表非空时）  
 - `--long-term-fraction`：非短期句池上的加权抽样比例，默认与 `--fraction` 相同  
 
 **语义摘要：**
@@ -283,10 +284,27 @@ npm run import:outputs -- --db ./memok.sqlite --as-of 2026-04-14
 本仓库可作为 **OpenClaw** 插件使用：在网关加载后，按会话把对话文本增量写入配置的 SQLite（与 CLI 导入共用同一套表语义时，即可统一查询）。
 
 - **清单**：根目录 `openclaw.plugin.json`（扩展 id、人类可读名称、配置项说明）。  
-- **配置项**：例如 **`dbPath`**（数据库文件路径）、**`enabled`**（是否启用自动保存）。  
-- **环境变量**：插件侧可使用 **`MEMOK_MEMORY_DB`** 覆盖默认库路径（便于开发与多环境隔离）。
+- **配置项**：  
+  - **`dbPath`**：SQLite 路径（支持 `~/…`）。  
+  - **`enabled`**：为 `false` 时整插件不注册（含保存与记忆注入）。  
+  - **`memoryInjectEnabled`**：是否在每轮 **模型调用前** 注入候选记忆（默认 `true`）。  
+  - **`persistTranscriptToMemory`**：是否在 **`agent_end` / `message_sent`** 时把对话 transcript 再跑 **`saveTextToMemoryDb`** 写入 SQLite。**未设置**时：若 **`memoryInjectEnabled` 为 true** 则默认 **false**（避免「从库抽样 → 注入 → 再把整段对话写回库」自我膨胀）；若未开启注入则默认 **true**（与旧版「只自动落库」一致）。需要「既注入又持续把对话写入图库」时请显式设为 **`true`**。  
+  - **`extractFraction` / `longTermFraction` / `maxInjectChars`**：注入时调用与 CLI 相同的 `extractMemorySentencesByWordSample` 逻辑，并限制 `prependContext` 长度。  
+  - **`memoryFeedbackLogPath`**：模型上报「实际用到的句子 id」时 **追加写入的 JSONL 文件**（默认 `~/.openclaw/extensions/memok-ai/memory-feedback.jsonl`）。  
+- **环境变量**：**`MEMOK_MEMORY_DB`** 可覆盖默认 **`dbPath`**（便于开发与多环境隔离）。
 
-具体钩子与节流策略见 **`src/plugin.ts`** 源码注释与实现。
+### 记忆读取与反馈（插件内）
+
+1. **`before_prompt_build`**：从上述 `dbPath` 对应库中抽样若干记忆句，以 **`prependContext`** 形式附加到本轮提示前；整块包在 **`@@@MEMOK_RECALL_START@@@` … `@@@MEMOK_RECALL_END@@@`** 之间，落库 transcript 时会**整段剥离**，避免回灌 SQLite；文案中会说明此为**候选**，模型需自行判断是否采用。  
+2. **Agent 工具 `memok_report_used_memory_ids`**：参数 `{ "sentenceIds": number[] }`。当模型**确实采用**了候选列表中的条目时，应调用该工具上报对应 **`id`**（与注入块中的 `[id=…]` 一致）。未采用则不应调用。  
+3. **反馈文件**：每次非空上报会向 **`memoryFeedbackLogPath`** 追加一行 JSON，例如：  
+   `{"ts":"2026-04-15T12:00:00.000Z","sessionKey":"…","sessionId":"…","sentenceIds":[1,2,3]}`  
+   当前实现**不写回 SQLite**；你可离线消费该 JSONL，或日后改为更新 `sentences` 权重等。
+
+**说明**：候选句的抽样方式与 CLI `extract-memory-sentences` 相同，**与当前用户单句 prompt 无语义对齐**；若需「按用户词检索」，需在 read-memory-pipeline 侧另行增强。  
+注入正文会对 **`HEARTBEAT` / `HEARTBEAT_OK` / `HEARTBEAT.md`** 做无害化断字，并剥离与网关相同的心跳/提醒模板片段，避免模型复述后触发 OpenClaw 心跳应答逻辑。写入记忆库的 transcript 在保存前也会走同一套逻辑，并会剔除 **`@@@MEMOK_RECALL_*@@@`** 定界块及旧版 **`【memok-ai 候选记忆】`** 回显（见 `stripMemokInjectEchoFromTranscript`）。
+
+具体钩子、游标保存与工具实现见 **`src/plugin.ts`**。
 
 ---
 

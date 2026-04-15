@@ -8,6 +8,7 @@ import {
   ArticleCoreWordsNomalizedData,
   ArticleSentenceCoreCombinedData,
 } from "./schemas.js";
+import { scrubHeartbeatInAwpTuple } from "../../utils/scrubOpenclawHeartbeatArtifacts.js";
 
 export async function articleWordPipelineV2(
   text: string,
@@ -22,7 +23,7 @@ export async function articleWordPipelineV2(
     const core = await analyzeArticleCoreWords(text, { client: opts?.client });
     const normalized = await normalizeArticleCoreWordsSynonyms(core, { client: opts?.client });
     const memorySentences = await analyzeArticleMemorySentences(text, { client: opts?.client });
-    return combineArticleSentenceCoreV2(memorySentences, normalized);
+    return scrubHeartbeatInAwpTuple(combineArticleSentenceCoreV2(memorySentences, normalized));
   }
 
   const branchCoreNormalize = async (): Promise<ArticleCoreWordsNomalizedData> => {
@@ -35,5 +36,5 @@ export async function articleWordPipelineV2(
     branchCoreNormalize(),
     branchMemory(),
   ]);
-  return combineArticleSentenceCoreV2(memorySentences, normalized);
+  return scrubHeartbeatInAwpTuple(combineArticleSentenceCoreV2(memorySentences, normalized));
 }
