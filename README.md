@@ -94,10 +94,8 @@ npm install
 ### 常用可选
 
 - **`OPENAI_BASE_URL`**：自定义网关或代理（如兼容 OpenAI 协议的第三方端点）。  
-- **各阶段专用模型**（未设置时会按代码内定义的**回退链**落到通用变量，最终可到 `MEMOK_ARTICLE_LLM_MODEL` 等）：  
-  - `MEMOK_V2_ARTICLE_CORE_WORDS_LLM_MODEL` — 整篇核心词  
-  - `MEMOK_V2_ARTICLE_CORE_WORDS_NORMALIZE_LLM_MODEL` — 核心词归一  
-  - `MEMOK_V2_ARTICLE_SENTENCES_LLM_MODEL` — 整篇记忆句  
+- **`MEMOK_LLM_MODEL`**：**默认模型**，整篇流水线各阶段共用（一般只配这一项即可）。  
+- **按需覆盖**：`MEMOK_V2_ARTICLE_CORE_WORDS_LLM_MODEL`、`MEMOK_V2_ARTICLE_CORE_WORDS_NORMALIZE_LLM_MODEL`、`MEMOK_V2_ARTICLE_SENTENCES_LLM_MODEL` 等（仅当某一阶段要用不同模型时再设；解析顺序见各模块 `resolveModel`）。  
 - **`MEMOK_V2_ARTICLE_SENTENCES_MAX_OUTPUT_TOKENS`**：记忆句阶段输出 token 上限（默认 8192）。  
 - **`MEMOK_CORE_WORDS_NORMALIZE_MAX_OUTPUT_TOKENS`**：归一阶段输出上限（默认较大；部分供应商分支会再 cap）。  
 - **`MEMOK_SKIP_LLM_STRUCTURED_PARSE=1`**：强制走 `json_object` 等路径、跳过部分 structured 解析分支（遇兼容问题时可试）。  

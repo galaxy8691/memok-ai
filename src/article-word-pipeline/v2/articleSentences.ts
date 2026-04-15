@@ -11,6 +11,8 @@ import {
 } from "./schemas.js";
 
 const ENV_V2_ARTICLE_SENTENCES = "MEMOK_V2_ARTICLE_SENTENCES_LLM_MODEL";
+/** 全流水线共用的默认模型；未设各阶段专有变量时使用 */
+const ENV_MEMOK_LLM_MODEL = "MEMOK_LLM_MODEL";
 const ENV_SENTENCE_DEDUCE_MODEL = "MEMOK_SENTENCE_DEDUCE_LLM_MODEL";
 const ENV_ARTICLE_MODEL = "MEMOK_ARTICLE_LLM_MODEL";
 const ENV_SENTENCE_CORE_MODEL = "MEMOK_SENTENCE_CORE_LLM_MODEL";
@@ -41,6 +43,7 @@ function resolveModel(explicit?: string): string {
   }
   for (const key of [
     ENV_V2_ARTICLE_SENTENCES,
+    ENV_MEMOK_LLM_MODEL,
     ENV_SENTENCE_DEDUCE_MODEL,
     ENV_ARTICLE_MODEL,
     ENV_SENTENCE_CORE_MODEL,
