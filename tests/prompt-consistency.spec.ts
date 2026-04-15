@@ -3,15 +3,15 @@ import { describe, expect, it } from "vitest";
 import {
   JSON_MODE_USER_SUFFIX_ARTICLE_CORE_WORDS,
   SYSTEM_PROMPT_ARTICLE_CORE_WORDS,
-} from "../src/v2/articleCoreWords.js";
+} from "../src/article-word-pipeline/v2/articleCoreWords.js";
 import {
   JSON_MODE_USER_SUFFIX_ARTICLE_CORE_WORDS_NORMALIZE,
   SYSTEM_PROMPT_ARTICLE_CORE_WORDS_NORMALIZE,
-} from "../src/v2/articleCoreWordsNormalize.js";
+} from "../src/article-word-pipeline/v2/articleCoreWordsNormalize.js";
 import {
   JSON_MODE_USER_SUFFIX_ARTICLE_SENTENCES,
   SYSTEM_PROMPT_ARTICLE_SENTENCES,
-} from "../src/v2/articleSentences.js";
+} from "../src/article-word-pipeline/v2/articleSentences.js";
 
 const PY_ROOT = "/home/wik20/memok/src/memok/article_word/v2";
 

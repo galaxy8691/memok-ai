@@ -74,6 +74,43 @@ function isStructuredResponseUnsupported(err: unknown): boolean {
   return signals.some((s) => msg.includes(s));
 }
 
+function compactSnippet(s: string, maxChars: number): string {
+  const oneLine = s.replace(/\s+/g, " ").trim();
+  if (oneLine.length <= maxChars) {
+    return oneLine;
+  }
+  return `${oneLine.slice(0, maxChars)}...`;
+}
+
+function extractJsonErrorPosition(msg: string): number | undefined {
+  const m = msg.match(/position\s+(\d+)/i);
+  if (!m) {
+    return undefined;
+  }
+  const n = Number.parseInt(m[1], 10);
+  return Number.isFinite(n) ? n : undefined;
+}
+
+function buildJsonParseDebug(raw: string, error: unknown): string {
+  const errMsg = error instanceof Error ? error.message : String(error);
+  const pos = extractJsonErrorPosition(errMsg);
+  const prefix = compactSnippet(raw.slice(0, 300), 300);
+  const suffix = compactSnippet(raw.slice(-300), 300);
+  let around = "";
+  if (pos !== undefined) {
+    const lo = Math.max(0, pos - 120);
+    const hi = Math.min(raw.length, pos + 120);
+    around = compactSnippet(raw.slice(lo, hi), 240);
+  }
+  return [
+    `json_parse_error=${errMsg}`,
+    `raw_length=${raw.length}`,
+    `raw_prefix=${JSON.stringify(prefix)}`,
+    `raw_suffix=${JSON.stringify(suffix)}`,
+    ...(around ? [`raw_around_pos=${JSON.stringify(around)}`] : []),
+  ].join("; ");
+}
+
 type Message = { role: "system" | "user" | "assistant"; content: string };
 
 type RunParseOrJsonParams<T> = {
@@ -119,7 +156,13 @@ export async function runParseOrJson<T>(params: RunParseOrJsonParams<T>): Promis
     if (!raw) {
       throw new Error("LLM returned empty content in json_object mode");
     }
-    const parsedJson = JSON.parse(raw);
+    let parsedJson: unknown;
+    try {
+      parsedJson = JSON.parse(raw);
+    } catch (error) {
+      const debug = buildJsonParseDebug(raw, error);
+      throw new Error(`LLM returned invalid JSON in json_object mode (${responseName}/${model}): ${debug}`);
+    }
     return schema.parse(parsedJson);
   };
 

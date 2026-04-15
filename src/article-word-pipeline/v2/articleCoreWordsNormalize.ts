@@ -3,7 +3,7 @@ import {
   isDeepseekCompatibleBaseUrl,
   loadProjectEnv,
   runParseOrJson,
-} from "../llm/openaiCompat.js";
+} from "../../llm/openaiCompat.js";
 import {
   ArticleCoreWordsData,
   ArticleCoreWordsNomalizedData,

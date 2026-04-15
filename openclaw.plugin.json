@@ -9,7 +9,7 @@
       "dbPath": {
         "type": "string",
         "description": "SQLite 数据库路径",
-        "default": "~/.openclaw/memok_memory.sqlite"
+        "default": "~/.openclaw/extensions/memok-ai/memok.sqlite"
       },
       "enabled": {
         "type": "boolean",

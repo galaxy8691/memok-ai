@@ -2,7 +2,7 @@ import OpenAI from "openai";
 import {
   loadProjectEnv,
   runParseOrJson,
-} from "../llm/openaiCompat.js";
+} from "../../llm/openaiCompat.js";
 import {
   ArticleCoreWordsData,
   ArticleCoreWordsDataSchema,

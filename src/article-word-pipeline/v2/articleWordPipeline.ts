@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import { llmMaxWorkers } from "../llm/openaiCompat.js";
+import { llmMaxWorkers } from "../../llm/openaiCompat.js";
 import { analyzeArticleCoreWords } from "./articleCoreWords.js";
 import { normalizeArticleCoreWordsSynonyms } from "./articleCoreWordsNormalize.js";
 import { combineArticleSentenceCoreV2 } from "./articleSentenceCoreCombine.js";

@@ -3,8 +3,8 @@ import {
   isDeepseekCompatibleBaseUrl,
   loadProjectEnv,
   runParseOrJson,
-} from "../llm/openaiCompat.js";
-import { isEnglishDominantText } from "../utils/sentenceTextLimits.js";
+} from "../../llm/openaiCompat.js";
+import { isEnglishDominantText } from "../../utils/sentenceTextLimits.js";
 import {
   ArticleMemorySentencesData,
   ArticleMemorySentencesDataSchema,

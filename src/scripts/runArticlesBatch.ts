@@ -1,7 +1,7 @@
 import { mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { basename, extname, join, resolve, relative } from "node:path";
-import { articleWordPipelineV2 } from "../v2/articleWordPipeline.js";
-import { dumpArticleSentenceCoreCombineTupleV2Json } from "../v2/articleSentenceCoreCombine.js";
+import { articleWordPipelineV2 } from "../article-word-pipeline/v2/articleWordPipeline.js";
+import { dumpArticleSentenceCoreCombineTupleV2Json } from "../article-word-pipeline/v2/articleSentenceCoreCombine.js";
 
 type CliOptions = {
   inputDir: string;

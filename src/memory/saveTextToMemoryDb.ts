@@ -1,5 +1,5 @@
 import Database from "better-sqlite3";
-import { articleWordPipelineV2 } from "../v2/articleWordPipeline.js";
+import { articleWordPipelineV2 } from "../article-word-pipeline/v2/articleWordPipeline.js";
 import { importAwpV2Tuple } from "../sqlite/awpV2Import.js";
 
 export type SaveTextToMemoryDbOptions = {

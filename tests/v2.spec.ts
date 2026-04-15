@@ -1,10 +1,10 @@
 import Database from "better-sqlite3";
 import { describe, expect, it } from "vitest";
-import { _internalArticleCoreWordsNormalize } from "../src/v2/articleCoreWordsNormalize.js";
+import { _internalArticleCoreWordsNormalize } from "../src/article-word-pipeline/v2/articleCoreWordsNormalize.js";
 import {
   combineArticleSentenceCoreV2,
   dumpArticleSentenceCoreCombineTupleV2Json,
-} from "../src/v2/articleSentenceCoreCombine.js";
+} from "../src/article-word-pipeline/v2/articleSentenceCoreCombine.js";
 import { parseAwpV2TupleJson, importAwpV2Tuple } from "../src/sqlite/awpV2Import.js";
 
 describe("v2 pure logic", () => {

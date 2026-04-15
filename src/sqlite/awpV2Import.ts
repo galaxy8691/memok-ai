@@ -1,6 +1,6 @@
 import Database from "better-sqlite3";
 import { readFileSync } from "node:fs";
-import { ArticleCoreWordsNomalizedData, ArticleSentenceCoreCombinedData, AwpV2TupleSchema } from "../v2/schemas.js";
+import { ArticleCoreWordsNomalizedData, ArticleSentenceCoreCombinedData, AwpV2TupleSchema } from "../article-word-pipeline/v2/schemas.js";
 
 export function parseAwpV2TupleJson(data: unknown): [ArticleSentenceCoreCombinedData, ArticleCoreWordsNomalizedData] {
   const parsed = typeof data === "string" ? JSON.parse(data) : data;

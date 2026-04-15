@@ -3,19 +3,19 @@ import { Command } from "commander";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { z } from "zod";
-import { analyzeArticleCoreWords } from "./v2/articleCoreWords.js";
-import { normalizeArticleCoreWordsSynonyms } from "./v2/articleCoreWordsNormalize.js";
-import { analyzeArticleMemorySentences } from "./v2/articleSentences.js";
+import { analyzeArticleCoreWords } from "./article-word-pipeline/v2/articleCoreWords.js";
+import { normalizeArticleCoreWordsSynonyms } from "./article-word-pipeline/v2/articleCoreWordsNormalize.js";
+import { analyzeArticleMemorySentences } from "./article-word-pipeline/v2/articleSentences.js";
 import {
   combineArticleSentenceCoreV2,
   dumpArticleSentenceCoreCombineTupleV2Json,
-} from "./v2/articleSentenceCoreCombine.js";
+} from "./article-word-pipeline/v2/articleSentenceCoreCombine.js";
 import {
   ArticleCoreWordsDataSchema,
   ArticleCoreWordsNomalizedDataSchema,
   ArticleMemorySentencesDataSchema,
-} from "./v2/schemas.js";
-import { articleWordPipelineV2 } from "./v2/articleWordPipeline.js";
+} from "./article-word-pipeline/v2/schemas.js";
+import { articleWordPipelineV2 } from "./article-word-pipeline/v2/articleWordPipeline.js";
 import { importAwpV2TupleFromPaths } from "./sqlite/awpV2Import.js";
 
 function resolvePath(p: string): string {
