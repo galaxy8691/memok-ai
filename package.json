@@ -24,6 +24,11 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
+  "files": [
+    "dist",
+    "openclaw.plugin.json",
+    "skills"
+  ],
   "dependencies": {
     "@sinclair/typebox": "^0.34.49",
     "better-sqlite3": "^12.9.0",

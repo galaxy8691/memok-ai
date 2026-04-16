@@ -2,6 +2,7 @@
   "id": "memok-ai",
   "name": "Memok AI Memory",
   "description": "自动保存 OpenClaw 对话到 memok-ai 记忆系统",
+  "skills": ["skills/memok-memory"],
   "configSchema": {
     "type": "object",
     "additionalProperties": false,
@@ -18,8 +19,14 @@
       },
       "memoryInjectEnabled": {
         "type": "boolean",
-        "description": "是否在每轮模型前注入「候选记忆」prependContext（与自动保存独立）",
+        "description": "是否启用候选记忆能力（skill+工具 或 prepend 注入；与自动保存独立）",
         "default": true
+      },
+      "memoryRecallMode": {
+        "type": "string",
+        "enum": ["skill", "skill+hint", "prepend"],
+        "description": "skill=每轮 appendSystemContext 强制候选+技能；工具同轮再抽样。skill+hint=同上+prependSystemContext/prependContext 提示+append 首行【memok】说明（默认；部分 UI 不显示 prepend 时仍见系统段）。prepend=整块 prependContext（旧行为）",
+        "default": "skill+hint"
       },
       "persistTranscriptToMemory": {
         "type": "boolean",

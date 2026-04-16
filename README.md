@@ -397,21 +397,24 @@ npm run import:outputs -- --db ./memok.sqlite --as-of 2026-04-14
 
 本仓库可作为 **OpenClaw** 插件使用：在网关加载后，按会话把对话文本增量写入配置的 SQLite（与 CLI 导入共用同一套表语义时，即可统一查询）。
 
-- **清单**：根目录 `openclaw.plugin.json`（扩展 id、人类可读名称、配置项说明）。  
+- **清单**：根目录 `openclaw.plugin.json`（扩展 id、人类可读名称、**捆绑技能** `skills/memok-memory`、配置项说明）。  
 - **配置项**：  
   - **`dbPath`**：SQLite 路径（支持 `~/…`）。  
-  - **`enabled`**：为 `false` 时整插件不注册（含保存与记忆注入）。  
-  - **`memoryInjectEnabled`**：是否在每轮 **模型调用前** 注入候选记忆（默认 `true`）。  
+  - **`enabled`**：为 `false` 时整插件不注册（含保存与候选记忆）。  
+  - **`memoryInjectEnabled`**：是否启用候选记忆与反馈工具（默认 `true`；与对话落库独立）。  
+  - **`memoryRecallMode`**：候选记忆如何送达模型（默认 **`skill+hint`**，与 manifest 一致）。**`skill`**：仅 **`appendSystemContext`** 强制附带候选 + 工具同轮再抽样。**`skill+hint`**：同上，并额外 **`prependSystemContext` + `prependContext`** 同句提示，且在 **`appendSystemContext`** 开头再写一行 **【memok】** 说明（因部分 Web UI 不展示运行期 prepend，便于在系统区看到）。**`prepend`**：整块 **`prependContext`**（旧行为）。  
   - **`persistTranscriptToMemory`**：是否在 **`agent_end` / `message_sent`** 时把对话 transcript 再跑 **`saveTextToMemoryDb`** 写入 SQLite（**默认 `true`**）。候选记忆块由 **`@@@MEMOK_RECALL_START@@@` … `@@@MEMOK_RECALL_END@@@`** 定界，落库前会整段剥离，避免把注入内容再灌回图库；若你**完全不要**对话落库，可显式设为 **`false`**。  
-  - **`extractFraction` / `longTermFraction` / `maxInjectChars`**：注入时调用与 CLI 相同的 `extractMemorySentencesByWordSample` 逻辑，并限制 `prependContext` 长度。  
+  - **`extractFraction` / `longTermFraction` / `maxInjectChars`**：抽样与 CLI 相同的 `extractMemorySentencesByWordSample` 逻辑；**prepend** 模式限制 `prependContext` 长度，**skill** 模式限制工具返回文本长度。  
   - **`memoryFeedbackLogPath`**：模型上报「实际用到的句子 id」时 **追加写入的 JSONL 文件**（默认 `~/.openclaw/extensions/memok-ai/memory-feedback.jsonl`）。  
 - **环境变量**：**`MEMOK_MEMORY_DB`** 可覆盖默认 **`dbPath`**（便于开发与多环境隔离）。
 
 ### 记忆读取与反馈（插件内）
 
-1. **`before_prompt_build`**：从上述 `dbPath` 对应库中抽样若干记忆句，以 **`prependContext`** 形式附加到本轮提示前；整块包在 **`@@@MEMOK_RECALL_START@@@` … `@@@MEMOK_RECALL_END@@@`** 之间，落库 transcript 时会**整段剥离**，避免回灌 SQLite；文案中会说明此为**候选**，模型需自行判断是否采用。  
-2. **Agent 工具 `memok_report_used_memory_ids`**：参数 `{ "sentenceIds": number[] }`。当模型**确实采用**了候选列表中的条目时，应调用该工具上报对应 **`id`**（与注入块中的 `[id=…]` 一致）。未采用则不应调用。  
-3. **反馈文件**：每次非空上报会向 **`memoryFeedbackLogPath`** 追加一行 JSON，例如：  
+1. **技能 `memok-memory`**（`skills/memok-memory/SKILL.md`）：说明何时先召回、再作答、再上报。网关需加载插件声明的 **`skills`** 后，Agent 才能按技能描述使用记忆流程。  
+2. **`before_prompt_build` 分支**：**`prepend`** 时整块 **`prependContext`**。**`skill`** / **`skill+hint`** 时每轮在钩子内抽样，**整块候选强制写入 `appendSystemContext`**；**`skill+hint`** 另有一行极短 **`prependContext`** 提示工具与系统块位置。  
+3. **Agent 工具 `memok_recall_candidate_memories`**（**`memoryInjectEnabled`** 时注册）：无参数；**`prepend`** 下可在本轮内再抽样；**`skill`** 下用于**同一轮内**自愿再抽一批并刷新候选 id。  
+4. **Agent 工具 `memok_report_used_memory_ids`**：参数 `{ "sentenceIds": number[] }`。当模型**确实采用**了本轮候选（prepend 块或召回工具返回）中的条目时，应调用该工具上报对应 **`id`**（与 `[id=…]` 一致）。未采用则不应调用。  
+5. **反馈文件**：每次非空上报会向 **`memoryFeedbackLogPath`** 追加一行 JSON，例如：  
    `{"ts":"2026-04-15T12:00:00.000Z","sessionKey":"…","sessionId":"…","sentenceIds":[1,2,3]}`  
    当前实现**不写回 SQLite**；你可离线消费该 JSONL，或日后改为更新 `sentences` 权重等。
 
@@ -419,6 +422,20 @@ npm run import:outputs -- --db ./memok.sqlite --as-of 2026-04-14
 注入正文会对 **`HEARTBEAT` / `HEARTBEAT_OK` / `HEARTBEAT.md`** 做无害化断字，并剥离与网关相同的心跳/提醒模板片段，避免模型复述后触发 OpenClaw 心跳应答逻辑。写入记忆库的 transcript 在保存前也会走同一套逻辑，并会剔除 **`@@@MEMOK_RECALL_*@@@`** 定界块及旧版 **`【memok-ai 候选记忆】`** 回显（见 `stripMemokInjectEchoFromTranscript`）。
 
 具体钩子、游标保存与工具实现见 **`src/plugin.ts`**。
+
+### 排查：看不到 `@@@MEMOK_RECALL_*` / 系统提示句 / 工具？
+
+1. **先确认网关侧插件已加载**（在装网关的机器上执行）：  
+   `openclaw plugins inspect memok-ai`  
+   若 JSON 里 **`toolNames`** 含 **`memok_recall_candidate_memories`** 与 **`memok_report_used_memory_ids`**，说明插件与工具注册正常；问题在「你看的界面 / 会话」而非安装包本身。
+
+2. **`memoryRecallMode: skill`（默认）时本来就不会有 `@@@MEMOK_RECALL_START@@@`**：候选记忆改为由模型**调用工具**拉取，不再每轮塞进 `prependContext`。
+
+3. **skill 模式**下每轮会往 **`appendSystemContext`** 附带**完整候选块**（与 prepend 同结构，仅展示层级不同）；**不以用户气泡里是否出现定界块为准**。若完全看不到模型侧行为，再查网关是否为本实例。
+
+4. **工具列表**：Control UI 的 **「Available Right Now」** 依赖网关的 **`tools.effective(sessionKey=…)`**（与 **Tool Configuration / 目录**不是同一数据源）。请选对**当前会话**，或发一轮消息后刷新；若仍无，检查是否连到**另一台未装插件的网关**、或 **`tools.profile` / 按 Agent 的工具策略**是否排除了插件工具。
+
+5. **日志**：网关日志里可搜 **`[memok-ai]`**。skill / skill+hint 时每轮应出现 **`appendSystemContext recall chars=…`**（`skill+hint` 时日志带 **`+prependHint`**）；prepend 则为 **`prependContext chars=…`**。若完全没有，说明该轮 **未走带 memok 的 Agent 路径**。
 
 ---
 
