@@ -91,7 +91,7 @@ export function importAwpV2Tuple(
     }
     const info = db
       .prepare(
-        "INSERT INTO sentences (sentence, weight, duration, last_edit_date, is_short_term) VALUES (?, 1, 7, ?, 1)",
+        "INSERT INTO sentences (sentence, weight, duration, last_edit_date, is_short_term, duration_change_times) VALUES (?, 1, 7, ?, 1, 0)",
       )
       .run(sentence, dateStr);
     const sentenceId = Number(info.lastInsertRowid);

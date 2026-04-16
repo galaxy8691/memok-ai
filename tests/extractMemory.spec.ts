@@ -8,7 +8,7 @@ function createFixtureDb(): Database.Database {
     CREATE TABLE words (id INTEGER PRIMARY KEY AUTOINCREMENT, word TEXT UNIQUE);
     CREATE TABLE normal_words (id INTEGER PRIMARY KEY AUTOINCREMENT, word TEXT UNIQUE);
     CREATE TABLE word_to_normal_link (word_id INTEGER, normal_id INTEGER, weight INTEGER);
-    CREATE TABLE sentences (id INTEGER PRIMARY KEY AUTOINCREMENT, sentence TEXT, weight INTEGER, duration INTEGER, last_edit_date TEXT, is_short_term INTEGER);
+    CREATE TABLE sentences (id INTEGER PRIMARY KEY AUTOINCREMENT, sentence TEXT, weight INTEGER, duration INTEGER, last_edit_date TEXT, is_short_term INTEGER, duration_change_times INTEGER NOT NULL DEFAULT 0);
     CREATE TABLE sentence_to_normal_link (normal_id INTEGER, sentence_id INTEGER, weight INTEGER);
   `);
   db.prepare("INSERT INTO words (word) VALUES (?), (?), (?), (?), (?)").run("a", "b", "c", "d", "e");
@@ -35,7 +35,7 @@ describe("extractMemorySentencesByWordSample", () => {
       CREATE TABLE words (id INTEGER PRIMARY KEY AUTOINCREMENT, word TEXT UNIQUE);
       CREATE TABLE normal_words (id INTEGER PRIMARY KEY AUTOINCREMENT, word TEXT UNIQUE);
       CREATE TABLE word_to_normal_link (word_id INTEGER, normal_id INTEGER, weight INTEGER);
-      CREATE TABLE sentences (id INTEGER PRIMARY KEY AUTOINCREMENT, sentence TEXT, weight INTEGER, duration INTEGER, last_edit_date TEXT, is_short_term INTEGER);
+      CREATE TABLE sentences (id INTEGER PRIMARY KEY AUTOINCREMENT, sentence TEXT, weight INTEGER, duration INTEGER, last_edit_date TEXT, is_short_term INTEGER, duration_change_times INTEGER NOT NULL DEFAULT 0);
       CREATE TABLE sentence_to_normal_link (normal_id INTEGER, sentence_id INTEGER, weight INTEGER);
     `);
     const out = extractMemorySentencesByWordSample(db);
@@ -77,7 +77,7 @@ describe("extractMemorySentencesByWordSample", () => {
       CREATE TABLE words (id INTEGER PRIMARY KEY AUTOINCREMENT, word TEXT UNIQUE);
       CREATE TABLE normal_words (id INTEGER PRIMARY KEY AUTOINCREMENT, word TEXT UNIQUE);
       CREATE TABLE word_to_normal_link (word_id INTEGER, normal_id INTEGER, weight INTEGER);
-      CREATE TABLE sentences (id INTEGER PRIMARY KEY AUTOINCREMENT, sentence TEXT, weight INTEGER, duration INTEGER, last_edit_date TEXT, is_short_term INTEGER);
+      CREATE TABLE sentences (id INTEGER PRIMARY KEY AUTOINCREMENT, sentence TEXT, weight INTEGER, duration INTEGER, last_edit_date TEXT, is_short_term INTEGER, duration_change_times INTEGER NOT NULL DEFAULT 0);
       CREATE TABLE sentence_to_normal_link (normal_id INTEGER, sentence_id INTEGER, weight INTEGER);
     `);
     for (let i = 0; i < 3; i += 1) {

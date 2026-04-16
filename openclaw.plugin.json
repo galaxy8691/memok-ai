@@ -49,7 +49,7 @@
       },
       "memoryFeedbackLogPath": {
         "type": "string",
-        "description": "模型上报「已使用的句子 id」时追加写入的 JSONL 路径（每行一条 JSON）",
+        "description": "memok_report_used_memory_ids 非空上报时追加的 JSONL（调试用；含 sentenceIds、validIds、updatedCount；与写库并行）",
         "default": "~/.openclaw/extensions/memok-ai/memory-feedback.jsonl"
       }
     }

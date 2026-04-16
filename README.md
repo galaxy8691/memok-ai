@@ -16,9 +16,10 @@
 | **批量文章处理** | 递归扫描目录下 `.txt`，逐篇跑流水线并写入 `outputs`，支持区间与跳过已存在文件。 |
 | **批量导入 outputs** | 将目录中 `*-output.json` 批量导入同一数据库。 |
 | **记忆抽样** | 从已导入库中按「随机抽样词 → 规范词 → 句」路径抽取句子子集，用于复习、抽检或下游提示词上下文。 |
+| **梦境叙事（dreaming-pipeline）** | 从 `words` 表按比例随机抽样词串，调用 LLM 写一段光怪陆离的短篇梦幻叙事（纯文本）。 |
 | **OpenClaw 插件** | 在网关侧把对话增量写入同一套 SQLite 记忆库（可配置库路径与开关）。 |
 
-当前 CLI **仅提供 v2 整篇流水线**（无旧版 v1 子命令）。
+当前 CLI **以 v2 整篇流水线为主**，并含 **`dream`**（词表抽样 + 梦幻叙事）等辅助命令（无旧版 v1 子命令）。
 
 ---
 
@@ -95,7 +96,7 @@ npm install
 | `words` | 原始词（每次出现的具体词汇） |
 | `normal_words` | 归一化词（"AI"、"人工智能"统一后的标准词） |
 | `word_to_normal_link` | 原始词 → 标准词的映射 |
-| `sentences` | 句子内容 + 权重 + 时间戳 + 是否短期记忆 |
+| `sentences` | 句子内容 + 权重 + 时长 + `last_edit_date` + 是否短期 +（若 schema 已升级）**`duration_change_times`**（**当日**时长变更次数，跨日重置；默认 0） |
 | `sentence_to_normal_link` | 句子 ↔ 标准词的关联（核心！）|
 
 ### 核心机制详解
@@ -210,6 +211,7 @@ AI 根据这些记忆 + 当前查询回复
 
 - **`OPENAI_BASE_URL`**：自定义网关或代理（如兼容 OpenAI 协议的第三方端点）。  
 - **`MEMOK_LLM_MODEL`**：**默认模型**，整篇流水线各阶段共用（一般只配这一项即可）。  
+- **`MEMOK_DREAMING_LLM_MODEL`**（可选）：**`dream`** 子命令专用；未设时与 `MEMOK_LLM_MODEL` 相同。  
 - **按需覆盖**：`MEMOK_V2_ARTICLE_CORE_WORDS_LLM_MODEL`、`MEMOK_V2_ARTICLE_CORE_WORDS_NORMALIZE_LLM_MODEL`、`MEMOK_V2_ARTICLE_SENTENCES_LLM_MODEL` 等（仅当某一阶段要用不同模型时再设；解析顺序见各模块 `resolveModel`）。  
 - **`MEMOK_V2_ARTICLE_SENTENCES_MAX_OUTPUT_TOKENS`**：记忆句阶段输出 token 上限（默认 8192）。  
 - **`MEMOK_CORE_WORDS_NORMALIZE_MAX_OUTPUT_TOKENS`**：归一阶段输出上限（默认较大；部分供应商分支会再 cap）。  
@@ -335,6 +337,16 @@ npm test
 - **非长期短期句**：在候选池中按 `weight + duration` **无放回加权随机**抽取约 `longTermFraction` 对应条数（具体公式见实现与测试）。  
 - 每条带 **`matched_word`: `{ word, normal_word }`**：在本次抽样词顺序下，**最先**能连到该句的那条「表层词 → 规范词」边，便于解释「因哪个词命中该句」。
 
+### `dream`
+
+从 **`words` 表**按 `--fraction`（默认 `0.2`，行数公式与 `extract-memory-sentences` 一致）随机抽样词串，调用 LLM 生成一段**中文梦幻叙事**，**纯文本**打印到 stdout（非 JSON）。需配置 **`OPENAI_API_KEY`**（及可选 **`OPENAI_BASE_URL`**）；可选用 **`MEMOK_DREAMING_LLM_MODEL`** 覆盖默认模型。
+
+**手测示例：**
+
+```bash
+npm run dev -- dream --db ./memok.sqlite
+```
+
 ---
 
 ## 批量处理文章
@@ -405,7 +417,7 @@ npm run import:outputs -- --db ./memok.sqlite --as-of 2026-04-14
   - **`memoryRecallMode`**：候选记忆如何送达模型（默认 **`skill+hint`**，与 manifest 一致）。**`skill`**：仅 **`appendSystemContext`** 强制附带候选 + 工具同轮再抽样。**`skill+hint`**：同上，并额外 **`prependSystemContext` + `prependContext`** 同句提示，且在 **`appendSystemContext`** 开头再写一行 **【memok】** 说明（因部分 Web UI 不展示运行期 prepend，便于在系统区看到）。**`prepend`**：整块 **`prependContext`**（旧行为）。  
   - **`persistTranscriptToMemory`**：是否在 **`agent_end` / `message_sent`** 时把对话 transcript 再跑 **`saveTextToMemoryDb`** 写入 SQLite（**默认 `true`**）。候选记忆块由 **`@@@MEMOK_RECALL_START@@@` … `@@@MEMOK_RECALL_END@@@`** 定界，落库前会整段剥离，避免把注入内容再灌回图库；若你**完全不要**对话落库，可显式设为 **`false`**。  
   - **`extractFraction` / `longTermFraction` / `maxInjectChars`**：抽样与 CLI 相同的 `extractMemorySentencesByWordSample` 逻辑；**prepend** 模式限制 `prependContext` 长度，**skill** 模式限制工具返回文本长度。  
-  - **`memoryFeedbackLogPath`**：模型上报「实际用到的句子 id」时 **追加写入的 JSONL 文件**（默认 `~/.openclaw/extensions/memok-ai/memory-feedback.jsonl`）。  
+  - **`memoryFeedbackLogPath`**：模型调用 **`memok_report_used_memory_ids`** 且 **`sentenceIds` 非空**时，向该路径 **追加一行 JSON**（便于调试；字段含原始 **`sentenceIds`**、校验后的 **`validIds`**、**`updatedCount`**；写库失败时可能含 **`dbError`**）。与 SQLite 更新**并行**，默认 `~/.openclaw/extensions/memok-ai/memory-feedback.jsonl`。  
 - **环境变量**：**`MEMOK_MEMORY_DB`** 可覆盖默认 **`dbPath`**（便于开发与多环境隔离）。
 
 ### 记忆读取与反馈（插件内）
@@ -414,9 +426,7 @@ npm run import:outputs -- --db ./memok.sqlite --as-of 2026-04-14
 2. **`before_prompt_build` 分支**：**`prepend`** 时整块 **`prependContext`**。**`skill`** / **`skill+hint`** 时每轮在钩子内抽样，**整块候选强制写入 `appendSystemContext`**；**`skill+hint`** 另有一行极短 **`prependContext`** 提示工具与系统块位置。  
 3. **Agent 工具 `memok_recall_candidate_memories`**（**`memoryInjectEnabled`** 时注册）：无参数；**`prepend`** 下可在本轮内再抽样；**`skill`** 下用于**同一轮内**自愿再抽一批并刷新候选 id。  
 4. **Agent 工具 `memok_report_used_memory_ids`**：参数 `{ "sentenceIds": number[] }`。当模型**确实采用**了本轮候选（prepend 块或召回工具返回）中的条目时，应调用该工具上报对应 **`id`**（与 `[id=…]` 一致）。未采用则不应调用。  
-5. **反馈文件**：每次非空上报会向 **`memoryFeedbackLogPath`** 追加一行 JSON，例如：  
-   `{"ts":"2026-04-15T12:00:00.000Z","sessionKey":"…","sessionId":"…","sentenceIds":[1,2,3]}`  
-   当前实现**不写回 SQLite**；你可离线消费该 JSONL，或日后改为更新 `sentences` 权重等。
+5. **反馈写库 + JSONL**：对**本轮可校验的候选 id**（与钩子/召回工具写入会话缓存的列表一致）中实际传入的 id，在 **`sentences`** 表上更新：**`weight` 每次反馈 +1**（**不限制**）；**`last_edit_date`** 设为当日（`YYYY-MM-DD`，UTC 日期）。**`duration`**：**若原 `last_edit_date` 不是今天**，则把当日计数视为从 0 开始并 **`duration` +1**、**`duration_change_times` = 1**；**若已是今天**且 **`duration_change_times` < 3**，则 **`duration` 与 `duration_change_times` 各 +1**（即同一天内 **`duration` 最多因反馈 +3**）。不在候选内的 id 会被忽略（并打日志）。每次**非空**上报还会向 **`memoryFeedbackLogPath`** 追加一行 JSON（调试用，与写库并行）。
 
 **说明**：候选句的抽样方式与 CLI `extract-memory-sentences` 相同，**与当前用户单句 prompt 无语义对齐**；若需「按用户词检索」，需在 read-memory-pipeline 侧另行增强。  
 注入正文会对 **`HEARTBEAT` / `HEARTBEAT_OK` / `HEARTBEAT.md`** 做无害化断字，并剥离与网关相同的心跳/提醒模板片段，避免模型复述后触发 OpenClaw 心跳应答逻辑。写入记忆库的 transcript 在保存前也会走同一套逻辑，并会剔除 **`@@@MEMOK_RECALL_*@@@`** 定界块及旧版 **`【memok-ai 候选记忆】`** 回显（见 `stripMemokInjectEchoFromTranscript`）。
@@ -429,7 +439,7 @@ npm run import:outputs -- --db ./memok.sqlite --as-of 2026-04-14
    `openclaw plugins inspect memok-ai`  
    若 JSON 里 **`toolNames`** 含 **`memok_recall_candidate_memories`** 与 **`memok_report_used_memory_ids`**，说明插件与工具注册正常；问题在「你看的界面 / 会话」而非安装包本身。
 
-2. **`memoryRecallMode: skill`（默认）时本来就不会有 `@@@MEMOK_RECALL_START@@@`**：候选记忆改为由模型**调用工具**拉取，不再每轮塞进 `prependContext`。
+2. **默认 `memoryRecallMode: skill+hint`（以及 `skill`）时，用户气泡里往往看不到 `@@@MEMOK_RECALL_START@@@`**：整块候选在 **`appendSystemContext`**；仅 **`prepend`** 模式才把定界块放进 **`prependContext`**。
 
 3. **skill 模式**下每轮会往 **`appendSystemContext`** 附带**完整候选块**（与 prepend 同结构，仅展示层级不同）；**不以用户气泡里是否出现定界块为准**。若完全看不到模型侧行为，再查网关是否为本实例。
 

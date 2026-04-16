@@ -17,6 +17,7 @@ import {
 } from "./article-word-pipeline/v2/schemas.js";
 import { articleWordPipelineV2 } from "./article-word-pipeline/v2/articleWordPipeline.js";
 import { importAwpV2TupleFromPaths } from "./sqlite/awpV2Import.js";
+import { runDreamFromDb } from "./dreaming-pipeline/runDreamFromDb.js";
 import { extractMemorySentencesByWordSample } from "./read-memory-pipeline/extractMemorySentencesByWordSample.js";
 
 function resolvePath(p: string): string {
@@ -139,6 +140,26 @@ program
       printJson(out);
     } catch (e) {
       exitValidation(e, "extract-memory-sentences 失败");
+    }
+  });
+
+program
+  .command("dream")
+  .description("从 words 表随机抽样关键词，用 LLM 生成一段梦幻叙事（纯文本输出到 stdout）")
+  .requiredOption("--db <path>", "sqlite 数据库路径")
+  .option("--fraction <n>", "对 words 表的抽样比例（默认 0.2）")
+  .action(async (opts: { db: string; fraction?: string }) => {
+    try {
+      const fraction =
+        opts.fraction !== undefined && opts.fraction !== ""
+          ? Number.parseFloat(opts.fraction)
+          : 0.2;
+      const text = await runDreamFromDb(resolvePath(opts.db), {
+        fraction: Number.isFinite(fraction) ? fraction : 0.2,
+      });
+      process.stdout.write(`${text}\n`);
+    } catch (e) {
+      exitValidation(e, "dream 失败");
     }
   });
 

@@ -11,7 +11,7 @@ export const WordMatchLinkSchema = z
 
 export type WordMatchLink = z.infer<typeof WordMatchLinkSchema>;
 
-/** 单条句子（与 sentences 表一致；is_short_term 以 JSON bool 输出） */
+/** 单条句子（与 sentences 表核心列一致；不含 duration_change_times 等扩展列；is_short_term 以 JSON bool 输出） */
 export const MemoryExtractedSentenceSchema = z
   .object({
     id: z.number().int(),
