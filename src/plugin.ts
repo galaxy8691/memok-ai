@@ -46,7 +46,7 @@ interface MemokConfig {
   memoryFeedbackLogPath?: string;
   /**
    * 是否在每轮结束后把对话 transcript 再跑 article 管线写入 SQLite。
-   * 未设置时：若开启记忆注入则默认 **false**（避免「读库 → 注入 → 再整段写回」自我污染）；未开启注入时默认 **true**（保持旧行为）。
+   * 未设置时默认 **true**；候选记忆块由 `@@@MEMOK_RECALL_*@@@` 定界，落库前会整段剥离，一般无需关闭。
    */
   persistTranscriptToMemory?: boolean;
 }
@@ -252,12 +252,10 @@ export default definePluginEntry({
     }
     api.logger?.info(`[memok-ai] 记忆反馈日志: ${memoryFeedbackLogPath}`);
 
-    const persistTranscriptToMemory =
-      pluginCfg.persistTranscriptToMemory === true ||
-      (pluginCfg.persistTranscriptToMemory !== false && !memoryInjectEnabled);
-    if (!persistTranscriptToMemory) {
+    const persistTranscriptToMemory = pluginCfg.persistTranscriptToMemory !== false;
+    if (pluginCfg.persistTranscriptToMemory === false) {
       api.logger?.info(
-        "[memok-ai] persistTranscriptToMemory 为关闭（默认与 memoryInjectEnabled 同时开启时关闭），对话不会写入 SQLite；仅注入/工具反馈仍可用。需要落库请设 persistTranscriptToMemory: true。",
+        "[memok-ai] persistTranscriptToMemory 已显式关闭，对话不会写入 SQLite（仅注入/工具反馈仍可用）。",
       );
     }
 

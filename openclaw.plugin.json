@@ -23,7 +23,8 @@
       },
       "persistTranscriptToMemory": {
         "type": "boolean",
-        "description": "是否在每轮结束后把对话 transcript 再跑 article 管线写入 SQLite。未设置时：开启记忆注入则默认 false（避免读库注入后再整段写回污染）；关闭注入时默认 true"
+        "description": "是否在每轮结束后把对话 transcript 写入 SQLite（默认 true）。候选记忆由 @@@MEMOK_RECALL_*@@@ 包裹，落库前会剥离；仅当不想落库时设为 false",
+        "default": true
       },
       "extractFraction": {
         "type": "number",
