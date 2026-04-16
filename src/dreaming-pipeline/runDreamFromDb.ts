@@ -9,7 +9,7 @@ export type RunDreamFromDbOpts = SampleWordStringsOpts & {
 };
 
 /**
- * 从数据库 `words` 表按比例抽样词串，再调用 LLM 生成梦幻叙事（纯文本）。
+ * 从数据库 `words` 表随机抽样至多若干词（默认 10），再调用 LLM 生成梦幻叙事（纯文本）。
  */
 export async function runDreamFromDb(dbPath: string, opts?: RunDreamFromDbOpts): Promise<string> {
   const { client, model, maxTokens, ...sampleOpts } = opts ?? {};

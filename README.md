@@ -16,7 +16,7 @@
 | **批量文章处理** | 递归扫描目录下 `.txt`，逐篇跑流水线并写入 `outputs`，支持区间与跳过已存在文件。 |
 | **批量导入 outputs** | 将目录中 `*-output.json` 批量导入同一数据库。 |
 | **记忆抽样** | 从已导入库中按「随机抽样词 → 规范词 → 句」路径抽取句子子集，用于复习、抽检或下游提示词上下文。 |
-| **梦境叙事（dreaming-pipeline）** | 从 `words` 表按比例随机抽样词串，调用 LLM 写一段光怪陆离的短篇梦幻叙事（纯文本）。 |
+| **梦境叙事（dreaming-pipeline）** | 从 `words` 表随机抽样至多 **10** 个词（可调），调用 LLM 写一段光怪陆离的短篇梦幻叙事（纯文本）。 |
 | **OpenClaw 插件** | 在网关侧把对话增量写入同一套 SQLite 记忆库（可配置库路径与开关）。 |
 
 当前 CLI **以 v2 整篇流水线为主**，并含 **`dream`**（词表抽样 + 梦幻叙事）等辅助命令（无旧版 v1 子命令）。
@@ -339,13 +339,64 @@ npm test
 
 ### `dream`
 
-从 **`words` 表**按 `--fraction`（默认 `0.2`，行数公式与 `extract-memory-sentences` 一致）随机抽样词串，调用 LLM 生成一段**中文梦幻叙事**，**纯文本**打印到 stdout（非 JSON）。需配置 **`OPENAI_API_KEY`**（及可选 **`OPENAI_BASE_URL`**）；可选用 **`MEMOK_DREAMING_LLM_MODEL`** 覆盖默认模型。
+从 **`words` 表**无放回随机抽样至多 **`--max-words`** 个词（默认 **10**；若表内词总数更少则全部抽中），调用 LLM 生成一段**中文梦幻叙事**，**纯文本**打印到 stdout（非 JSON）。需配置 **`OPENAI_API_KEY`**（及可选 **`OPENAI_BASE_URL`**）；可选用 **`MEMOK_DREAMING_LLM_MODEL`** 覆盖默认模型。
 
 **手测示例：**
 
 ```bash
 npm run dev -- dream --db ./memok.sqlite
 ```
+
+### `sentence-relevance`
+
+从 `sentences` 表随机抽样约 **20%**（至少 1 条，表非空），与给定 `story` 组成：
+
+```json
+{
+  "story": "string",
+  "sentences": [{ "id": 1, "sentence": "..." }]
+}
+```
+
+交给 LLM 对每条句子做相关性评分，输出 JSON：
+
+```json
+{
+  "sentences": [{ "id": 1, "score": 87 }]
+}
+```
+
+约束：`score` 为 `0-100` 整数；输出条数与输入抽样条数一致；输出 id 集合必须与输入一致。
+
+**手测示例：**
+
+```bash
+# 文件输入
+npm run dev -- sentence-relevance --db ./memok.sqlite --story ./story.txt
+
+# 直接文本输入
+npm run dev -- sentence-relevance --db ./memok.sqlite --story-text "夜里我看见海上的灯塔在说话。"
+```
+
+### `story-sentence-buckets`
+
+一键手测完整链路（无需先准备现成 story）：
+
+1. 从 `words` 表随机抽样最多 10 个词（可调）  
+2. 用这些词生成梦幻故事  
+3. 从 `sentences` 表随机抽样约 20% 句子做相关性评分  
+4. 输出分桶：`id_ge_50`（`score >= 50`）与 `id_lt_50`
+
+**命令示例：**
+
+```bash
+npm run dev -- story-sentence-buckets --db ./memok.sqlite
+```
+
+可选参数：
+
+- `--max-words`：故事生成词数上限（默认 10）
+- `--fraction`：句子抽样比例（默认 0.2）
 
 ---
 

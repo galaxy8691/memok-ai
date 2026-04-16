@@ -31,7 +31,7 @@ describe("sampleWordStrings", () => {
     }
   });
 
-  it("with one row and default fraction returns that single word", () => {
+  it("with one row returns that single word", () => {
     const root = mkdtempSync(join(tmpdir(), "memok-dream-"));
     try {
       const dbPath = mkWordsDb(root, ["solo"]);
@@ -42,14 +42,13 @@ describe("sampleWordStrings", () => {
     }
   });
 
-  it("k = max(1, round(n * fraction)) and samples are subset of table", () => {
+  it("default caps at 10 words when table has more", { timeout: 15000 }, () => {
     const root = mkdtempSync(join(tmpdir(), "memok-dream-"));
     try {
-      const all = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"];
+      const all = Array.from({ length: 25 }, (_, i) => `w${i}`);
       const dbPath = mkWordsDb(root, all);
-      // n=10, fraction=0.2 -> k=2
-      const out = sampleWordStrings(dbPath, { fraction: 0.2 });
-      expect(out.length).toBe(2);
+      const out = sampleWordStrings(dbPath);
+      expect(out.length).toBe(10);
       const set = new Set(all);
       for (const w of out) {
         expect(set.has(w)).toBe(true);
@@ -59,14 +58,26 @@ describe("sampleWordStrings", () => {
     }
   });
 
-  it("fraction=1 yields all words (order random)", () => {
+  it("returns all rows when fewer than maxWords", () => {
     const root = mkdtempSync(join(tmpdir(), "memok-dream-"));
     try {
-      const all = ["x", "y", "z"];
+      const all = ["a", "b", "c"];
       const dbPath = mkWordsDb(root, all);
-      const out = sampleWordStrings(dbPath, { fraction: 1 });
+      const out = sampleWordStrings(dbPath, { maxWords: 10 });
       expect(out.length).toBe(3);
       expect(new Set(out)).toEqual(new Set(all));
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("maxWords overrides cap", () => {
+    const root = mkdtempSync(join(tmpdir(), "memok-dream-"));
+    try {
+      const all = Array.from({ length: 20 }, (_, i) => `x${i}`);
+      const dbPath = mkWordsDb(root, all);
+      const out = sampleWordStrings(dbPath, { maxWords: 5 });
+      expect(out.length).toBe(5);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

@@ -18,6 +18,8 @@ import {
 import { articleWordPipelineV2 } from "./article-word-pipeline/v2/articleWordPipeline.js";
 import { importAwpV2TupleFromPaths } from "./sqlite/awpV2Import.js";
 import { runDreamFromDb } from "./dreaming-pipeline/runDreamFromDb.js";
+import { runSentenceRelevanceFromDb } from "./dreaming-pipeline/runSentenceRelevanceFromDb.js";
+import { runStorySentenceBucketsFromDb } from "./dreaming-pipeline/runStorySentenceBucketsFromDb.js";
 import { extractMemorySentencesByWordSample } from "./read-memory-pipeline/extractMemorySentencesByWordSample.js";
 
 function resolvePath(p: string): string {
@@ -147,19 +149,72 @@ program
   .command("dream")
   .description("从 words 表随机抽样关键词，用 LLM 生成一段梦幻叙事（纯文本输出到 stdout）")
   .requiredOption("--db <path>", "sqlite 数据库路径")
-  .option("--fraction <n>", "对 words 表的抽样比例（默认 0.2）")
-  .action(async (opts: { db: string; fraction?: string }) => {
+  .option("--max-words <n>", "从 words 表最多抽几个词（默认 10）")
+  .action(async (opts: { db: string; maxWords?: string }) => {
     try {
-      const fraction =
-        opts.fraction !== undefined && opts.fraction !== ""
-          ? Number.parseFloat(opts.fraction)
-          : 0.2;
+      const raw =
+        opts.maxWords !== undefined && opts.maxWords !== ""
+          ? Number.parseInt(opts.maxWords, 10)
+          : 10;
+      const maxWords = Number.isFinite(raw) && raw > 0 ? raw : 10;
       const text = await runDreamFromDb(resolvePath(opts.db), {
-        fraction: Number.isFinite(fraction) ? fraction : 0.2,
+        maxWords,
       });
       process.stdout.write(`${text}\n`);
     } catch (e) {
       exitValidation(e, "dream 失败");
+    }
+  });
+
+program
+  .command("sentence-relevance")
+  .description("从 sentences 随机抽样约 20%，对给定 story 逐句做 0-100 相关性评分，输出 JSON")
+  .requiredOption("--db <path>", "sqlite 数据库路径")
+  .option("--story <path>", "故事文件路径（UTF-8）")
+  .option("--story-text <text>", "直接传入故事文本")
+  .action(async (opts: { db: string; story?: string; storyText?: string }) => {
+    try {
+      const hasStoryPath = !!(opts.story && opts.story.trim());
+      const hasStoryText = !!(opts.storyText && opts.storyText.trim());
+      if (!hasStoryPath && !hasStoryText) {
+        throw new Error("请提供 --story 或 --story-text 其中之一");
+      }
+      if (hasStoryPath && hasStoryText) {
+        throw new Error("--story 与 --story-text 只能二选一");
+      }
+      const story = hasStoryPath ? readUtf8(opts.story!) : opts.storyText!.trim();
+      const out = await runSentenceRelevanceFromDb(resolvePath(opts.db), story, { fraction: 0.2 });
+      printJson(out);
+    } catch (e) {
+      exitValidation(e, "sentence-relevance 失败");
+    }
+  });
+
+program
+  .command("story-sentence-buckets")
+  .description("从 DB 自动抽 10 词生成故事，再抽样句子评分并输出 >=50 / <50 分桶")
+  .requiredOption("--db <path>", "sqlite 数据库路径")
+  .option("--max-words <n>", "生成故事时从 words 表最多抽几个词（默认 10）")
+  .option("--fraction <n>", "句子相关性抽样比例（默认 0.2）")
+  .action(async (opts: { db: string; maxWords?: string; fraction?: string }) => {
+    try {
+      const rawMaxWords =
+        opts.maxWords !== undefined && opts.maxWords !== ""
+          ? Number.parseInt(opts.maxWords, 10)
+          : 10;
+      const maxWords = Number.isFinite(rawMaxWords) && rawMaxWords > 0 ? rawMaxWords : 10;
+      const rawFraction =
+        opts.fraction !== undefined && opts.fraction !== ""
+          ? Number.parseFloat(opts.fraction)
+          : 0.2;
+      const fraction = Number.isFinite(rawFraction) && rawFraction > 0 ? rawFraction : 0.2;
+      const out = await runStorySentenceBucketsFromDb(resolvePath(opts.db), {
+        maxWords,
+        fraction,
+      });
+      printJson(out);
+    } catch (e) {
+      exitValidation(e, "story-sentence-buckets 失败");
     }
   });
 
