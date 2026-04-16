@@ -398,6 +398,48 @@ npm run dev -- story-sentence-buckets --db ./memok.sqlite
 - `--max-words`：故事生成词数上限（默认 10）
 - `--fraction`：句子抽样比例（默认 0.2）
 
+### `apply-result-link-feedback`
+
+根据 `result.json` 的 `words` 与分桶句子 id，回写 `sentence_to_normal_link`：
+
+- `id_ge_60` 对应 `sentences` 行：`weight + 1` 且 `duration + 1`（不设上限）
+- `id_ge_60` 对应边：`weight + 1`
+- `id_lt_40` 对应边：`weight - 1`
+- 若减后 `weight <= 0`：删除该边
+- 仅处理 `words -> normal_words` 命中的 `normal_id` 对应边
+- 若句子同时在高低分组（冲突）：该句跳过
+
+**手测示例：**
+
+```bash
+npm run dev -- apply-result-link-feedback --db ./test-db/memok.sqlite --result-json ./result.json
+```
+
+### `merge-orphan-sentences`
+
+从 `sentences` 表找出“孤儿句子”（即在 `sentence_to_normal_link` 中没有任何关联行），以 `result.json` 的最高分句子为基准，逐条调用 LLM 合并后删除孤儿句子。
+
+**手测示例：**
+
+```bash
+npm run dev -- merge-orphan-sentences --db ./test-db/memok.sqlite --result-json ./result.json
+```
+
+### `dream-feedback-pipeline`
+
+一键执行完整链路：
+
+1. 从 DB 抽词并生成 dream story
+2. 从 DB 抽句并做相关性评分 + 分桶
+3. 按分桶回写 `sentence_to_normal_link` 与 `sentences` 权重/时长
+4. 扫描孤儿句并与最高分句合并后删除孤儿
+
+**手测示例：**
+
+```bash
+npm run dev -- dream-feedback-pipeline --db ./test-db/memok.sqlite --max-words 10 --fraction 0.2
+```
+
 ---
 
 ## 批量处理文章

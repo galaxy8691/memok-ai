@@ -18,6 +18,9 @@ import {
 import { articleWordPipelineV2 } from "./article-word-pipeline/v2/articleWordPipeline.js";
 import { importAwpV2TupleFromPaths } from "./sqlite/awpV2Import.js";
 import { runDreamFromDb } from "./dreaming-pipeline/runDreamFromDb.js";
+import { applyResultLinkFeedback, ResultLinkFeedbackInputSchema } from "./dreaming-pipeline/applyResultLinkFeedback.js";
+import { mergeOrphanSentencesIntoTopScored } from "./dreaming-pipeline/mergeOrphanSentencesIntoTopScored.js";
+import { runDreamFeedbackPipelineFromDb } from "./dreaming-pipeline/runDreamFeedbackPipelineFromDb.js";
 import { runSentenceRelevanceFromDb } from "./dreaming-pipeline/runSentenceRelevanceFromDb.js";
 import { runStorySentenceBucketsFromDb } from "./dreaming-pipeline/runStorySentenceBucketsFromDb.js";
 import { extractMemorySentencesByWordSample } from "./read-memory-pipeline/extractMemorySentencesByWordSample.js";
@@ -215,6 +218,76 @@ program
       printJson(out);
     } catch (e) {
       exitValidation(e, "story-sentence-buckets 失败");
+    }
+  });
+
+program
+  .command("apply-result-link-feedback")
+  .description(
+    "根据 result.json 的 words + 分桶句子 id 回写 sentence_to_normal_link 权重（高分+1，低分-1，<=0 删除）",
+  )
+  .requiredOption("--db <path>", "sqlite 数据库路径")
+  .requiredOption("--result-json <path>", "result.json 路径")
+  .action((opts: { db: string; resultJson: string }) => {
+    try {
+      const raw = JSON.parse(readUtf8(opts.resultJson)) as {
+        words?: unknown;
+        buckets?: unknown;
+      };
+      // 兼容 story-sentence-buckets 的完整输出（含 story/relevance 等额外字段）
+      const parsed = ResultLinkFeedbackInputSchema.parse({
+        words: raw.words,
+        buckets: raw.buckets,
+      });
+      const out = applyResultLinkFeedback(resolvePath(opts.db), parsed);
+      printJson(out);
+    } catch (e) {
+      exitValidation(e, "apply-result-link-feedback 失败");
+    }
+  });
+
+program
+  .command("merge-orphan-sentences")
+  .description("找出无 link 的孤儿句子，与 result.json 最高分句子经 LLM 合并后删除孤儿句")
+  .requiredOption("--db <path>", "sqlite 数据库路径")
+  .requiredOption("--result-json <path>", "包含 relevance 的 result.json 路径")
+  .action(async (opts: { db: string; resultJson: string }) => {
+    try {
+      const out = await mergeOrphanSentencesIntoTopScored(
+        resolvePath(opts.db),
+        resolvePath(opts.resultJson),
+      );
+      printJson(out);
+    } catch (e) {
+      exitValidation(e, "merge-orphan-sentences 失败");
+    }
+  });
+
+program
+  .command("dream-feedback-pipeline")
+  .description("一键执行：生成故事+句子评分+关联权重回写+孤儿句合并清理")
+  .requiredOption("--db <path>", "sqlite 数据库路径")
+  .option("--max-words <n>", "生成故事时从 words 表最多抽几个词（默认 10）")
+  .option("--fraction <n>", "句子相关性抽样比例（默认 0.2）")
+  .action(async (opts: { db: string; maxWords?: string; fraction?: string }) => {
+    try {
+      const rawMaxWords =
+        opts.maxWords !== undefined && opts.maxWords !== ""
+          ? Number.parseInt(opts.maxWords, 10)
+          : 10;
+      const maxWords = Number.isFinite(rawMaxWords) && rawMaxWords > 0 ? rawMaxWords : 10;
+      const rawFraction =
+        opts.fraction !== undefined && opts.fraction !== ""
+          ? Number.parseFloat(opts.fraction)
+          : 0.2;
+      const fraction = Number.isFinite(rawFraction) && rawFraction > 0 ? rawFraction : 0.2;
+      const out = await runDreamFeedbackPipelineFromDb(resolvePath(opts.db), {
+        maxWords,
+        fraction,
+      });
+      printJson(out);
+    } catch (e) {
+      exitValidation(e, "dream-feedback-pipeline 失败");
     }
   });
 

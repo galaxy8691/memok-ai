@@ -29,3 +29,25 @@ export {
   buildRelevanceBuckets,
   type RelevanceBuckets,
 } from "./buildRelevanceBuckets.js";
+export {
+  ResultLinkFeedbackInputSchema,
+  applyResultLinkFeedback,
+  type ResultLinkFeedbackInput,
+  type ApplyResultLinkFeedbackResult,
+} from "./applyResultLinkFeedback.js";
+export {
+  MergeSentenceOutputSchema,
+  SYSTEM_PROMPT_MERGE_SENTENCE,
+  mergeSentenceText,
+  type MergeSentenceOutput,
+} from "./mergeSentenceText.js";
+export {
+  ResultJsonForTopSentenceSchema,
+  mergeOrphanSentencesIntoTopScored,
+  type MergeOrphanResult,
+} from "./mergeOrphanSentencesIntoTopScored.js";
+export {
+  runDreamFeedbackPipelineFromDb,
+  type RunDreamFeedbackPipelineFromDbOpts,
+  type DreamFeedbackPipelineResult,
+} from "./runDreamFeedbackPipelineFromDb.js";
