@@ -42,6 +42,12 @@ npm run dev -- --help
 bash <(curl -fsSL https://raw.githubusercontent.com/galaxy8691/memok-ai/main/scripts/install-linux-macos.sh)
 ```
 
+中国大陆网络推荐（国内镜像加速）：
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/galaxy8691/memok-ai/main/scripts/install-cn-linux-macos.sh)
+```
+
 ```powershell
 # Windows PowerShell
 irm https://raw.githubusercontent.com/galaxy8691/memok-ai/main/scripts/install-windows.ps1 | iex
@@ -65,6 +71,9 @@ install-windows.cmd
 
 - `MEMOK_RESTART_WAIT_SECONDS`（默认 `20`）
 - `MEMOK_KEEP_SOURCE=1`（调试时保留源码目录）
+- `MEMOK_REPO_URL_CN`（国内主镜像，默认 `https://gitee.com/galaxy8691/memok-ai.git`）
+- `MEMOK_REPO_URL_FALLBACK`（回退仓库，默认 GitHub）
+- `MEMOK_NPM_REGISTRY`（默认 `https://registry.npmmirror.com`）
 
 如果 setup 报错 `plugins.allow excludes "memok"`，请在 `~/.openclaw/openclaw.json` 的 `plugins.allow` 增加 `"memok"`，然后重试：
 

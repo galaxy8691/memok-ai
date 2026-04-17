@@ -21,11 +21,17 @@ function Restart-Gateway {
   $waitSeconds = if ($env:MEMOK_RESTART_WAIT_SECONDS) { [int]$env:MEMOK_RESTART_WAIT_SECONDS } else { 20 }
   Write-Host "[memok-ai installer] restarting OpenClaw gateway ($Reason)..."
   try {
-    openclaw restart | Out-Host
+    openclaw gateway restart | Out-Host
     Write-Host "[memok-ai installer] waiting $waitSeconds s for gateway to come back..."
     Start-Sleep -Seconds $waitSeconds
   } catch {
-    Write-Host "[memok-ai installer] warning: openclaw restart failed, continuing."
+    try {
+      openclaw restart | Out-Host
+      Write-Host "[memok-ai installer] waiting $waitSeconds s for gateway to come back..."
+      Start-Sleep -Seconds $waitSeconds
+    } catch {
+      Write-Host "[memok-ai installer] warning: gateway restart command failed, continuing."
+    }
   }
 }
 

@@ -19,14 +19,17 @@ restart_gateway() {
   local reason="$1"
   local wait_seconds="${MEMOK_RESTART_WAIT_SECONDS:-20}"
   echo "[memok-ai installer] restarting OpenClaw gateway (${reason})..."
-  if openclaw restart; then
+  if openclaw gateway restart; then
+    echo "[memok-ai installer] waiting ${wait_seconds}s for gateway to come back..."
+    sleep "${wait_seconds}"
+  elif openclaw restart; then
     echo "[memok-ai installer] waiting ${wait_seconds}s for gateway to come back..."
     sleep "${wait_seconds}"
   else
-    echo "[memok-ai installer] warning: openclaw restart failed, continuing."
+    echo "[memok-ai installer] warning: gateway restart command failed, continuing."
   fi
 }
-
+  
 wait_memok_command_ready() {
   local max_attempts="${MEMOK_SETUP_WAIT_ATTEMPTS:-10}"
   local delay_seconds="${MEMOK_SETUP_WAIT_INTERVAL_SECONDS:-2}"
