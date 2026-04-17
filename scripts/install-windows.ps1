@@ -16,39 +16,6 @@ Require-Command git
 Require-Command openclaw
 Require-Command npm
 
-function Restart-Gateway {
-  param([string]$Reason)
-  $waitSeconds = if ($env:MEMOK_RESTART_WAIT_SECONDS) { [int]$env:MEMOK_RESTART_WAIT_SECONDS } else { 20 }
-  Write-Host "[memok-ai installer] restarting OpenClaw gateway ($Reason)..."
-  try {
-    openclaw gateway restart | Out-Host
-    Write-Host "[memok-ai installer] waiting $waitSeconds s for gateway to come back..."
-    Start-Sleep -Seconds $waitSeconds
-  } catch {
-    try {
-      openclaw restart | Out-Host
-      Write-Host "[memok-ai installer] waiting $waitSeconds s for gateway to come back..."
-      Start-Sleep -Seconds $waitSeconds
-    } catch {
-      Write-Host "[memok-ai installer] warning: gateway restart command failed, continuing."
-    }
-  }
-}
-
-function Wait-MemokCommandReady {
-  $attempts = if ($env:MEMOK_SETUP_WAIT_ATTEMPTS) { [int]$env:MEMOK_SETUP_WAIT_ATTEMPTS } else { 10 }
-  $delay = if ($env:MEMOK_SETUP_WAIT_INTERVAL_SECONDS) { [int]$env:MEMOK_SETUP_WAIT_INTERVAL_SECONDS } else { 2 }
-  for ($i = 0; $i -lt $attempts; $i++) {
-    try {
-      openclaw memok --help *> $null
-      return $true
-    } catch {
-      Start-Sleep -Seconds $delay
-    }
-  }
-  return $false
-}
-
 function Cleanup-SourceDir {
   if ($env:MEMOK_KEEP_SOURCE -eq "1") {
     Write-Host "[memok-ai installer] keeping source dir: $TargetDir (MEMOK_KEEP_SOURCE=1)"
@@ -79,10 +46,7 @@ npm --prefix $TargetDir run build | Out-Host
 Write-Host "[memok-ai installer] installing plugin..."
 openclaw plugins install $TargetDir
 
-Restart-Gateway "load newly installed plugin"
-if (-not (Wait-MemokCommandReady)) {
-  Write-Host "[memok-ai installer] warning: memok CLI is not ready yet; setup may fail."
-}
+Write-Host "[memok-ai installer] install step finished; next: memok setup (restart the gateway yourself when you want new plugins loaded)."
 
 Write-Host "[memok-ai installer] running interactive setup..."
 try {
@@ -101,7 +65,6 @@ try {
   throw
 }
 
-Restart-Gateway "apply setup config"
 Cleanup-SourceDir
 
 Write-Host ""

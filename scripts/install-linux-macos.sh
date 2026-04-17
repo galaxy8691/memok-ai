@@ -29,42 +29,6 @@ need_cmd git
 need_cmd openclaw
 need_cmd npm
 
-restart_gateway() {
-  local reason="$1"
-  local wait_seconds="${MEMOK_RESTART_WAIT_SECONDS:-20}"
-  local gw_timeout="${MEMOK_GATEWAY_RESTART_TIMEOUT_SECONDS:-120}"
-  if [ "${MEMOK_SKIP_GATEWAY_RESTART:-0}" = "1" ]; then
-    echo "[memok-ai installer] skipping gateway restart (MEMOK_SKIP_GATEWAY_RESTART=1). Restart the gateway yourself if needed."
-    return 0
-  fi
-  echo "[memok-ai installer] restarting OpenClaw gateway (${reason})..."
-  if run_with_timeout "$gw_timeout" openclaw gateway restart; then
-    echo "[memok-ai installer] waiting ${wait_seconds}s for gateway to come back..."
-    sleep "${wait_seconds}"
-  elif run_with_timeout "$gw_timeout" openclaw restart; then
-    echo "[memok-ai installer] waiting ${wait_seconds}s for gateway to come back..."
-    sleep "${wait_seconds}"
-  else
-    echo "[memok-ai installer] warning: gateway restart failed or timed out after ${gw_timeout}s; continuing."
-  fi
-}
-
-wait_memok_command_ready() {
-  local max_attempts="${MEMOK_SETUP_WAIT_ATTEMPTS:-10}"
-  local delay_seconds="${MEMOK_SETUP_WAIT_INTERVAL_SECONDS:-2}"
-  local cli_timeout="${MEMOK_CLI_TIMEOUT_SECONDS:-15}"
-  local i=1
-  while [ "$i" -le "$max_attempts" ]; do
-    echo "[memok-ai installer] checking memok CLI (${i}/${max_attempts}, ${cli_timeout}s timeout per check)..."
-    if run_with_timeout "$cli_timeout" openclaw memok --help >/dev/null 2>&1; then
-      return 0
-    fi
-    sleep "${delay_seconds}"
-    i=$((i + 1))
-  done
-  return 1
-}
-
 cleanup_source_dir() {
   if [ "${MEMOK_KEEP_SOURCE:-0}" = "1" ]; then
     echo "[memok-ai installer] keeping source dir: $TARGET_DIR (MEMOK_KEEP_SOURCE=1)"
@@ -103,11 +67,7 @@ else
   openclaw plugins install "$TARGET_DIR"
 fi
 
-echo "[memok-ai installer] install step finished; next: gateway restart then memok setup."
-restart_gateway "load newly installed plugin"
-if ! wait_memok_command_ready; then
-  echo "[memok-ai installer] warning: memok CLI is not ready yet; setup may fail."
-fi
+echo "[memok-ai installer] install step finished; next: memok setup (restart the gateway yourself when you want new plugins loaded)."
 
 echo "[memok-ai installer] running interactive setup..."
 # Do NOT capture stdout/stderr: `openclaw memok setup` uses readline prompts; command substitution
@@ -125,7 +85,6 @@ if [ $SETUP_STATUS -ne 0 ]; then
   exit $SETUP_STATUS
 fi
 
-restart_gateway "apply setup config"
 cleanup_source_dir
 
 echo

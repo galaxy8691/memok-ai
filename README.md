@@ -58,13 +58,12 @@ Installer behavior:
 
 - Auto runs `npm install` + `npm run build`
 - Auto installs plugin via `openclaw plugins install`
-- Auto restarts gateway, waits 20s by default, then runs `openclaw memok setup`
-- Auto restarts gateway again after setup
+- Runs `openclaw memok setup` (restart the OpenClaw gateway yourself when you want newly installed plugins loaded)
 - Auto removes install source directory (`~/.openclaw/extensions/memok-ai-src`) after success
 
 Useful installer env vars:
 
-- `MEMOK_RESTART_WAIT_SECONDS` (default `20`)
+- `MEMOK_PLUGINS_INSTALL_TIMEOUT_SECONDS` (optional; seconds cap for `openclaw plugins install`, `0` = no limit)
 - `MEMOK_KEEP_SOURCE=1` (keep source directory for debugging)
 
 If setup fails with `plugins.allow excludes "memok"`, add `"memok"` to `~/.openclaw/openclaw.json` under `plugins.allow`, then rerun:
@@ -87,7 +86,7 @@ The setup wizard lets you configure:
 - Optional memory-slot exclusivity (default: non-exclusive)
 - Dreaming schedule (`dailyAt` / cron / timezone)
 
-If you installed via script, restart is already handled automatically.
+After changing plugins or config, restart the gateway when you want the running process to pick them up (for example `openclaw gateway restart` if that is how you manage it).
 
 ## Quick CLI Example
 
