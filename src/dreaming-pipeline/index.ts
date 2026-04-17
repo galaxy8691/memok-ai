@@ -1,4 +1,9 @@
-/** 对外仅导出 story-word-sentence 单轮 / 多轮编排；其余实现文件为内部依赖，仍位于本目录供单测与实现引用。 */
+/** 对外导出 dreaming 编排（predream + story-word-sentence）及子模块入口。 */
+export {
+  runDreamingPipelineFromDb,
+  type DreamingPipelineResult,
+  type RunDreamingPipelineFromDbOpts,
+} from "./runDreamingPipelineFromDb.js";
 export {
   runStoryWordSentenceBucketsFromDb,
   runStoryWordSentencePipelineFromDb,
@@ -8,3 +13,4 @@ export {
   type StoryWordSentencePipelineOrphanMergeTotals,
   type StoryWordSentencePipelineResult,
 } from "./story-word-sentence-pipeline/index.js";
+export { runPredreamDecayFromDb, type PredreamDecayResult } from "./predream-pipeline/index.js";

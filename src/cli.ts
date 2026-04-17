@@ -17,6 +17,8 @@ import {
 } from "./article-word-pipeline/v2/schemas.js";
 import { articleWordPipelineV2 } from "./article-word-pipeline/v2/articleWordPipeline.js";
 import { importAwpV2TupleFromPaths } from "./sqlite/awpV2Import.js";
+import { runDreamingPipelineFromDb } from "./dreaming-pipeline/runDreamingPipelineFromDb.js";
+import { runPredreamDecayFromDb } from "./dreaming-pipeline/predream-pipeline/index.js";
 import {
   runStoryWordSentenceBucketsFromDb,
   runStoryWordSentencePipelineFromDb,
@@ -209,6 +211,80 @@ async function runStoryWordSentencePipelineCli(opts: {
   );
   printJson(out);
 }
+
+async function runDreamingPipelineCli(opts: {
+  db: string;
+  maxWords?: string;
+  fraction?: string;
+  minRuns?: string;
+  maxRuns?: string;
+}): Promise<void> {
+  const rawMaxWords =
+    opts.maxWords !== undefined && opts.maxWords !== ""
+      ? Number.parseInt(opts.maxWords, 10)
+      : 10;
+  const maxWords = Number.isFinite(rawMaxWords) && rawMaxWords > 0 ? rawMaxWords : 10;
+  const rawFraction =
+    opts.fraction !== undefined && opts.fraction !== ""
+      ? Number.parseFloat(opts.fraction)
+      : 0.2;
+  const fraction = Number.isFinite(rawFraction) && rawFraction > 0 ? rawFraction : 0.2;
+  const rawMinRuns =
+    opts.minRuns !== undefined && opts.minRuns !== ""
+      ? Number.parseInt(opts.minRuns, 10)
+      : undefined;
+  const minRuns =
+    rawMinRuns !== undefined && Number.isFinite(rawMinRuns) && rawMinRuns > 0 ? rawMinRuns : undefined;
+  const rawMaxRuns =
+    opts.maxRuns !== undefined && opts.maxRuns !== ""
+      ? Number.parseInt(opts.maxRuns, 10)
+      : undefined;
+  const maxRuns =
+    rawMaxRuns !== undefined && Number.isFinite(rawMaxRuns) && rawMaxRuns > 0 ? rawMaxRuns : undefined;
+  const out = await runDreamingPipelineFromDb(resolvePath(opts.db), {
+    maxWords,
+    fraction,
+    minRuns,
+    maxRuns,
+  });
+  process.stderr.write(
+    `[memok-ai] dreaming-pipeline: predream done; storyWordSentencePipeline plannedRuns=${out.storyWordSentencePipeline.plannedRuns} (${out.storyWordSentencePipeline.minRuns}–${out.storyWordSentencePipeline.maxRuns})\n`,
+  );
+  printJson(out);
+}
+
+program
+  .command("dreaming-pipeline")
+  .description(
+    "先 predream-decay（duration 衰减与短期句清理），再 story-word-sentence-pipeline；stdout 为合并 JSON（predream + storyWordSentencePipeline）",
+  )
+  .requiredOption("--db <path>", "sqlite 数据库路径")
+  .option("--max-words <n>", "story 阶段从 words 表最多抽几个词（默认 10）")
+  .option("--fraction <n>", "句子与 normal_words 相关性共用抽样比例（默认 0.2）")
+  .option("--min-runs <n>", "story-word-sentence-pipeline 随机轮数下限（含），默认 3")
+  .option("--max-runs <n>", "story-word-sentence-pipeline 随机轮数上限（含），默认 5")
+  .action(async (opts: { db: string; maxWords?: string; fraction?: string; minRuns?: string; maxRuns?: string }) => {
+    try {
+      await runDreamingPipelineCli(opts);
+    } catch (e) {
+      exitValidation(e, "dreaming-pipeline 失败");
+    }
+  });
+
+program
+  .command("predream-decay")
+  .description(
+    "predream：全表 sentences.duration 减 1；短期且 duration<=0 时 weight>=7 转长期，weight<7 删句；stdout JSON 报告",
+  )
+  .requiredOption("--db <path>", "sqlite 数据库路径")
+  .action((opts: { db: string }) => {
+    try {
+      const out = runPredreamDecayFromDb(resolvePath(opts.db));
+      printJson(out);
+    } catch (e) {
+      exitValidation(e, "predream-decay 失败");
+    }
+  });
 
 program
   .command("story-word-sentence-buckets")

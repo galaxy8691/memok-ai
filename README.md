@@ -16,10 +16,10 @@
 | **批量文章处理** | 递归扫描目录下 `.txt`，逐篇跑流水线并写入 `outputs`，支持区间与跳过已存在文件。 |
 | **批量导入 outputs** | 将目录中 `*-output.json` 批量导入同一数据库。 |
 | **记忆抽样** | 从已导入库中按「随机抽样词 → 规范词 → 句」路径抽取句子子集，用于复习、抽检或下游提示词上下文。 |
-| **story-word-sentence（dreaming）** | CLI：`story-word-sentence-buckets`（单轮写库）与 `story-word-sentence-pipeline`（多轮汇总）；实现与库入口在 `src/dreaming-pipeline/story-word-sentence-pipeline/`（`dreaming-pipeline/index.ts` 再导出）。 |
+| **story-word-sentence（dreaming）** | CLI：**`dreaming-pipeline`**（先 `predream` 再 `story-word-sentence-pipeline`，合并 JSON）；另有 `predream-decay`、`story-word-sentence-buckets`、`story-word-sentence-pipeline` 可单独调用；实现见 `src/dreaming-pipeline/`（`dreaming-pipeline/index.ts` 再导出）。 |
 | **OpenClaw 插件** | 在网关侧把对话增量写入同一套 SQLite 记忆库（可配置库路径与开关）。 |
 
-当前 CLI **以 v2 整篇流水线为主**；梦境侧仅保留 **`story-word-sentence-buckets`** / **`story-word-sentence-pipeline`**（无旧版 v1 子命令）。
+当前 CLI **以 v2 整篇流水线为主**；梦境侧保留 **`dreaming-pipeline`**（一键合并两段）、**`predream-decay`**、**`story-word-sentence-buckets`**、**`story-word-sentence-pipeline`**（无旧版 v1 子命令）。
 
 ---
 
@@ -335,6 +335,46 @@ npm test
 - **短期句**（`is_short_term === true`）：候选中**全部**保留，排在输出数组前段。  
 - **非长期短期句**：在候选池中按 `weight + duration` **无放回加权随机**抽取约 `longTermFraction` 对应条数（具体公式见实现与测试）。  
 - 每条带 **`matched_word`: `{ word, normal_word }`**：在本次抽样词顺序下，**最先**能连到该句的那条「表层词 → 规范词」边，便于解释「因哪个词命中该句」。
+
+### `dreaming-pipeline`
+
+**一键 dreaming**：在同一数据库上**顺序**执行
+
+1. 与 **`predream-decay`** 相同逻辑（`runPredreamDecayFromDb`）  
+2. 与 **`story-word-sentence-pipeline`** 相同逻辑（`runStoryWordSentencePipelineFromDb`，含 `--max-words` / `--fraction` / `--min-runs` / `--max-runs`）
+
+stdout 为**一份合并 JSON**，顶层两个键：
+
+- **`predream`**：`PredreamDecayResult`（`sentencesDurationDecremented`、`promotedToLongTerm`、`deletedSentences`）  
+- **`storyWordSentencePipeline`**：`StoryWordSentencePipelineResult`（多轮汇总字段，与单独跑 pipeline 一致）
+
+stderr 会打一行简要进度（含 `plannedRuns` 区间）。
+
+**命令示例：**
+
+```bash
+npm run dev -- dreaming-pipeline --db ./memok.sqlite
+npm run dev -- dreaming-pipeline --db ./memok.sqlite --max-words 10 --fraction 0.2 --min-runs 3 --max-runs 5
+```
+
+### `predream-decay`
+
+**predream（dreaming 前维护）**：对 `sentences` 表**所有行**执行 `duration = duration - 1`；再处理仍满足 **`is_short_term = 1`** 且 **`duration <= 0`** 的行（句级 **`weight`**，见 `sentences.weight`）：
+
+- **`weight >= 7`**：将该句 **`is_short_term` 置为 0**（视为转入长期池）。
+- **`weight < 7`**：**删除**该句；若存在 **`sentence_to_normal_link`** 表，会先删对应关联行再删句。
+
+stdout 为一份 JSON 报告（`indent=2`），字段：
+
+- **`sentencesDurationDecremented`**：第一步全局减 `duration` 所影响的行数。  
+- **`promotedToLongTerm`**：第二步中按规则转为长期（`is_short_term` 置 0）的句子条数。  
+- **`deletedSentences`**：第二步中按规则删除的句子条数。
+
+**命令示例：**
+
+```bash
+npm run dev -- predream-decay --db ./memok.sqlite
+```
 
 ### `story-word-sentence-buckets`
 
