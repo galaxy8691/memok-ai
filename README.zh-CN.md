@@ -71,7 +71,7 @@ install-windows.cmd
 
 - `MEMOK_RESTART_WAIT_SECONDS`（默认 `20`）
 - `MEMOK_KEEP_SOURCE=1`（调试时保留源码目录）
-- `MEMOK_REPO_URL_CN`（国内主镜像，默认 `https://gitee.com/galaxy8691/memok-ai.git`）
+- `MEMOK_REPO_URL_CN`（可选自定义仓库镜像，默认 GitHub）
 - `MEMOK_REPO_URL_FALLBACK`（回退仓库，默认 GitHub）
 - `MEMOK_NPM_REGISTRY`（默认 `https://registry.npmmirror.com`）
 

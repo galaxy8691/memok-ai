@@ -2,11 +2,11 @@
 set -euo pipefail
 
 # China-optimized installer:
-# - Prefer Gitee mirror
-# - Fallback to GitHub
+# - Default to GitHub repo source
+# - Optional custom repo mirror via MEMOK_REPO_URL_CN
 # - Use npm mirror registry by default
 
-REPO_URL_CN="${MEMOK_REPO_URL_CN:-https://gitee.com/galaxy8691/memok-ai.git}"
+REPO_URL_CN="${MEMOK_REPO_URL_CN:-https://github.com/galaxy8691/memok-ai.git}"
 REPO_URL_FALLBACK="${MEMOK_REPO_URL_FALLBACK:-https://github.com/galaxy8691/memok-ai.git}"
 TARGET_DIR="${MEMOK_INSTALL_DIR:-$HOME/.openclaw/extensions/memok-ai-src}"
 NPM_REGISTRY="${MEMOK_NPM_REGISTRY:-https://registry.npmmirror.com}"
@@ -74,7 +74,7 @@ clone_or_update_repo() {
 
   rm -rf "$TARGET_DIR"
   mkdir -p "$(dirname "$TARGET_DIR")"
-  echo "[memok-ai cn installer] cloning from primary mirror..."
+  echo "[memok-ai cn installer] cloning from primary source..."
   if ! git clone --depth=1 "$primary" "$TARGET_DIR"; then
     echo "[memok-ai cn installer] primary clone failed, cloning from fallback..."
     git clone --depth=1 "$fallback" "$TARGET_DIR"
