@@ -50,6 +50,13 @@ function resolveMemokDbPathFromConfig(root: Record<string, unknown>): string {
   return expandUserPath(raw || getDefaultDbPath());
 }
 
+function isMemokSetupCliRun(): boolean {
+  const argv = process.argv.map((x) => x.toLowerCase());
+  const memokIdx = argv.lastIndexOf("memok");
+  if (memokIdx < 0) return false;
+  return argv[memokIdx + 1] === "setup";
+}
+
 /** `plugins.entries.memok-ai.config` 与 manifest 字段对应 */
 interface MemokConfig extends MemokLlmEnvConfig {
   dbPath?: string;
@@ -455,6 +462,11 @@ export default definePluginEntry({
     }
 
     if (pluginCfg.dreamingPipelineScheduleEnabled === true) {
+      if (isMemokSetupCliRun()) {
+        api.logger?.info(
+          "[memok-ai] 检测到 `openclaw memok setup` 交互流程，跳过 dreaming cron 注册以避免 CLI 进程常驻。",
+        );
+      } else {
       const rawCron = 
         typeof pluginCfg.dreamingPipelineCron === "string" && pluginCfg.dreamingPipelineCron.trim()
           ? pluginCfg.dreamingPipelineCron.trim()
@@ -487,6 +499,7 @@ export default definePluginEntry({
         timezone: dreamingTz,
         pipelineOpts: Object.keys(pipelineOpts).length > 0 ? pipelineOpts : undefined,
       });
+      }
     }
 
     const runSave = async (

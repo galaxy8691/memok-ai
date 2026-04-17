@@ -115,7 +115,7 @@ export async function promptMemokSetupAnswers(): Promise<MemokSetupAnswers> {
       false,
     );
 
-    const dreamingOn = toYes(await ask("是否启用 dreaming 定时任务？(y/N): "), false);
+    const dreamingOn = toYes(await ask("是否启用 dreaming 定时任务？(Y/n): "), true);
     let dreamingPipelineDailyAt: string | undefined;
     let dreamingPipelineTimezone: string | undefined;
     if (dreamingOn) {
