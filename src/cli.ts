@@ -17,12 +17,10 @@ import {
 } from "./article-word-pipeline/v2/schemas.js";
 import { articleWordPipelineV2 } from "./article-word-pipeline/v2/articleWordPipeline.js";
 import { importAwpV2TupleFromPaths } from "./sqlite/awpV2Import.js";
-import { runDreamFromDb } from "./dreaming-pipeline/runDreamFromDb.js";
-import { applyResultLinkFeedback, ResultLinkFeedbackInputSchema } from "./dreaming-pipeline/applyResultLinkFeedback.js";
-import { mergeOrphanSentencesIntoTopScored } from "./dreaming-pipeline/mergeOrphanSentencesIntoTopScored.js";
-import { runDreamFeedbackPipelineFromDb } from "./dreaming-pipeline/runDreamFeedbackPipelineFromDb.js";
-import { runSentenceRelevanceFromDb } from "./dreaming-pipeline/runSentenceRelevanceFromDb.js";
-import { runStorySentenceBucketsFromDb } from "./dreaming-pipeline/runStorySentenceBucketsFromDb.js";
+import {
+  runStoryWordSentenceBucketsFromDb,
+  runStoryWordSentencePipelineFromDb,
+} from "./dreaming-pipeline/story-word-sentence-pipeline/index.js";
 import { extractMemorySentencesByWordSample } from "./read-memory-pipeline/extractMemorySentencesByWordSample.js";
 import { hardenDbFile } from "./sqlite/hardenDb.js";
 
@@ -149,148 +147,104 @@ program
     }
   });
 
-program
-  .command("dream")
-  .description("从 words 表随机抽样关键词，用 LLM 生成一段梦幻叙事（纯文本输出到 stdout）")
-  .requiredOption("--db <path>", "sqlite 数据库路径")
-  .option("--max-words <n>", "从 words 表最多抽几个词（默认 10）")
-  .action(async (opts: { db: string; maxWords?: string }) => {
-    try {
-      const raw =
-        opts.maxWords !== undefined && opts.maxWords !== ""
-          ? Number.parseInt(opts.maxWords, 10)
-          : 10;
-      const maxWords = Number.isFinite(raw) && raw > 0 ? raw : 10;
-      const text = await runDreamFromDb(resolvePath(opts.db), {
-        maxWords,
-      });
-      process.stdout.write(`${text}\n`);
-    } catch (e) {
-      exitValidation(e, "dream 失败");
-    }
+async function runStoryWordSentenceBucketsCli(opts: {
+  db: string;
+  maxWords?: string;
+  fraction?: string;
+}): Promise<void> {
+  const rawMaxWords =
+    opts.maxWords !== undefined && opts.maxWords !== ""
+      ? Number.parseInt(opts.maxWords, 10)
+      : 10;
+  const maxWords = Number.isFinite(rawMaxWords) && rawMaxWords > 0 ? rawMaxWords : 10;
+  const rawFraction =
+    opts.fraction !== undefined && opts.fraction !== ""
+      ? Number.parseFloat(opts.fraction)
+      : 0.2;
+  const fraction = Number.isFinite(rawFraction) && rawFraction > 0 ? rawFraction : 0.2;
+  const out = await runStoryWordSentenceBucketsFromDb(resolvePath(opts.db), {
+    maxWords,
+    fraction,
   });
+  printJson(out);
+}
+
+async function runStoryWordSentencePipelineCli(opts: {
+  db: string;
+  maxWords?: string;
+  fraction?: string;
+  minRuns?: string;
+  maxRuns?: string;
+}): Promise<void> {
+  const rawMaxWords =
+    opts.maxWords !== undefined && opts.maxWords !== ""
+      ? Number.parseInt(opts.maxWords, 10)
+      : 10;
+  const maxWords = Number.isFinite(rawMaxWords) && rawMaxWords > 0 ? rawMaxWords : 10;
+  const rawFraction =
+    opts.fraction !== undefined && opts.fraction !== ""
+      ? Number.parseFloat(opts.fraction)
+      : 0.2;
+  const fraction = Number.isFinite(rawFraction) && rawFraction > 0 ? rawFraction : 0.2;
+  const rawMinRuns =
+    opts.minRuns !== undefined && opts.minRuns !== ""
+      ? Number.parseInt(opts.minRuns, 10)
+      : undefined;
+  const minRuns =
+    rawMinRuns !== undefined && Number.isFinite(rawMinRuns) && rawMinRuns > 0 ? rawMinRuns : undefined;
+  const rawMaxRuns =
+    opts.maxRuns !== undefined && opts.maxRuns !== ""
+      ? Number.parseInt(opts.maxRuns, 10)
+      : undefined;
+  const maxRuns =
+    rawMaxRuns !== undefined && Number.isFinite(rawMaxRuns) && rawMaxRuns > 0 ? rawMaxRuns : undefined;
+  const out = await runStoryWordSentencePipelineFromDb(resolvePath(opts.db), {
+    maxWords,
+    fraction,
+    minRuns,
+    maxRuns,
+  });
+  process.stderr.write(
+    `[memok-ai] story-word-sentence-pipeline: plannedRuns=${out.plannedRuns} (range ${out.minRuns}–${out.maxRuns})\n`,
+  );
+  printJson(out);
+}
 
 program
-  .command("sentence-relevance")
-  .description("从 sentences 随机抽样约 20%，对给定 story 逐句做 0-100 相关性评分，输出 JSON")
-  .requiredOption("--db <path>", "sqlite 数据库路径")
-  .option("--story <path>", "故事文件路径（UTF-8）")
-  .option("--story-text <text>", "直接传入故事文本")
-  .action(async (opts: { db: string; story?: string; storyText?: string }) => {
-    try {
-      const hasStoryPath = !!(opts.story && opts.story.trim());
-      const hasStoryText = !!(opts.storyText && opts.storyText.trim());
-      if (!hasStoryPath && !hasStoryText) {
-        throw new Error("请提供 --story 或 --story-text 其中之一");
-      }
-      if (hasStoryPath && hasStoryText) {
-        throw new Error("--story 与 --story-text 只能二选一");
-      }
-      const story = hasStoryPath ? readUtf8(opts.story!) : opts.storyText!.trim();
-      const out = await runSentenceRelevanceFromDb(resolvePath(opts.db), story, { fraction: 0.2 });
-      printJson(out);
-    } catch (e) {
-      exitValidation(e, "sentence-relevance 失败");
-    }
-  });
-
-program
-  .command("story-sentence-buckets")
-  .description("从 DB 自动抽 10 词生成故事，再抽样句子评分并输出 >=50 / <50 分桶")
-  .requiredOption("--db <path>", "sqlite 数据库路径")
-  .option("--max-words <n>", "生成故事时从 words 表最多抽几个词（默认 10）")
-  .option("--fraction <n>", "句子相关性抽样比例（默认 0.2）")
-  .action(async (opts: { db: string; maxWords?: string; fraction?: string }) => {
-    try {
-      const rawMaxWords =
-        opts.maxWords !== undefined && opts.maxWords !== ""
-          ? Number.parseInt(opts.maxWords, 10)
-          : 10;
-      const maxWords = Number.isFinite(rawMaxWords) && rawMaxWords > 0 ? rawMaxWords : 10;
-      const rawFraction =
-        opts.fraction !== undefined && opts.fraction !== ""
-          ? Number.parseFloat(opts.fraction)
-          : 0.2;
-      const fraction = Number.isFinite(rawFraction) && rawFraction > 0 ? rawFraction : 0.2;
-      const out = await runStorySentenceBucketsFromDb(resolvePath(opts.db), {
-        maxWords,
-        fraction,
-      });
-      printJson(out);
-    } catch (e) {
-      exitValidation(e, "story-sentence-buckets 失败");
-    }
-  });
-
-program
-  .command("apply-result-link-feedback")
+  .command("story-word-sentence-buckets")
   .description(
-    "根据 result.json 的 words + 分桶句子 id 回写 sentence_to_normal_link 权重（高分+1，低分-1，<=0 删除）",
+    "完整 dreaming：抽词+故事+句/词评分分桶+双 link 回写+删孤立 normal_words+孤儿句合并删；stdout JSON 必含 orphanSentenceMerge 等全套字段",
   )
   .requiredOption("--db <path>", "sqlite 数据库路径")
-  .requiredOption("--result-json <path>", "result.json 路径")
-  .action((opts: { db: string; resultJson: string }) => {
-    try {
-      const raw = JSON.parse(readUtf8(opts.resultJson)) as {
-        words?: unknown;
-        buckets?: unknown;
-      };
-      // 兼容 story-sentence-buckets 的完整输出（含 story/relevance 等额外字段）
-      const parsed = ResultLinkFeedbackInputSchema.parse({
-        words: raw.words,
-        buckets: raw.buckets,
-      });
-      const out = applyResultLinkFeedback(resolvePath(opts.db), parsed);
-      printJson(out);
-    } catch (e) {
-      exitValidation(e, "apply-result-link-feedback 失败");
-    }
-  });
-
-program
-  .command("merge-orphan-sentences")
-  .description("找出无 link 的孤儿句子，与 result.json 最高分句子经 LLM 合并后删除孤儿句")
-  .requiredOption("--db <path>", "sqlite 数据库路径")
-  .requiredOption("--result-json <path>", "包含 relevance 的 result.json 路径")
-  .action(async (opts: { db: string; resultJson: string }) => {
-    try {
-      const out = await mergeOrphanSentencesIntoTopScored(
-        resolvePath(opts.db),
-        resolvePath(opts.resultJson),
-      );
-      printJson(out);
-    } catch (e) {
-      exitValidation(e, "merge-orphan-sentences 失败");
-    }
-  });
-
-program
-  .command("dream-feedback-pipeline")
-  .description("一键执行：生成故事+句子评分+关联权重回写+孤儿句合并清理")
-  .requiredOption("--db <path>", "sqlite 数据库路径")
   .option("--max-words <n>", "生成故事时从 words 表最多抽几个词（默认 10）")
-  .option("--fraction <n>", "句子相关性抽样比例（默认 0.2）")
+  .option("--fraction <n>", "句子与 normal_words 相关性共用抽样比例（默认 0.2）")
   .action(async (opts: { db: string; maxWords?: string; fraction?: string }) => {
     try {
-      const rawMaxWords =
-        opts.maxWords !== undefined && opts.maxWords !== ""
-          ? Number.parseInt(opts.maxWords, 10)
-          : 10;
-      const maxWords = Number.isFinite(rawMaxWords) && rawMaxWords > 0 ? rawMaxWords : 10;
-      const rawFraction =
-        opts.fraction !== undefined && opts.fraction !== ""
-          ? Number.parseFloat(opts.fraction)
-          : 0.2;
-      const fraction = Number.isFinite(rawFraction) && rawFraction > 0 ? rawFraction : 0.2;
-      const out = await runDreamFeedbackPipelineFromDb(resolvePath(opts.db), {
-        maxWords,
-        fraction,
-      });
-      printJson(out);
+      await runStoryWordSentenceBucketsCli(opts);
     } catch (e) {
-      exitValidation(e, "dream-feedback-pipeline 失败");
+      exitValidation(e, "story-word-sentence-buckets 失败");
     }
   });
+
+program
+  .command("story-word-sentence-pipeline")
+  .description(
+    "在同一 DB 上顺序执行多轮完整 story-word-sentence-buckets；轮数在 --min-runs～--max-runs 间随机（默认 3–5）；stdout 仅输出多轮汇总 JSON",
+  )
+  .requiredOption("--db <path>", "sqlite 数据库路径")
+  .option("--max-words <n>", "每轮生成故事时从 words 表最多抽几个词（默认 10）")
+  .option("--fraction <n>", "每轮句子与 normal_words 相关性共用抽样比例（默认 0.2）")
+  .option("--min-runs <n>", "随机轮数下限（含），默认 3")
+  .option("--max-runs <n>", "随机轮数上限（含），默认 5")
+  .action(
+    async (opts: { db: string; maxWords?: string; fraction?: string; minRuns?: string; maxRuns?: string }) => {
+      try {
+        await runStoryWordSentencePipelineCli(opts);
+      } catch (e) {
+        exitValidation(e, "story-word-sentence-pipeline 失败");
+      }
+    },
+  );
 
 program
   .command("harden-db")

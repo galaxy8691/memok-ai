@@ -4,7 +4,7 @@ import {
   isDeepseekCompatibleBaseUrl,
   loadProjectEnv,
   runParseOrJson,
-} from "../llm/openaiCompat.js";
+} from "../../llm/openaiCompat.js";
 
 const ENV_MERGE_SENTENCE_MODEL = "MEMOK_MERGE_SENTENCE_LLM_MODEL";
 const ENV_MEMOK_LLM_MODEL = "MEMOK_LLM_MODEL";

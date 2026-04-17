@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import { isDeepseekCompatibleBaseUrl, loadProjectEnv } from "../llm/openaiCompat.js";
+import { isDeepseekCompatibleBaseUrl, loadProjectEnv } from "../../llm/openaiCompat.js";
 
 const ENV_DREAMING_MODEL = "MEMOK_DREAMING_LLM_MODEL";
 const ENV_MEMOK_LLM_MODEL = "MEMOK_LLM_MODEL";

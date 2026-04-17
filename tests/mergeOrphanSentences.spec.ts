@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import Database from "better-sqlite3";
 import { describe, expect, it } from "vitest";
-import { mergeOrphanSentencesIntoTopScored } from "../src/dreaming-pipeline/mergeOrphanSentencesIntoTopScored.js";
+import { mergeOrphanSentencesIntoTopScored } from "../src/dreaming-pipeline/story-word-sentence-pipeline/mergeOrphanSentencesIntoTopScored.js";
 
 function makeDb(root: string): string {
   const dbPath = join(root, "orphan.sqlite");

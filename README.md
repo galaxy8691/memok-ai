@@ -16,10 +16,10 @@
 | **批量文章处理** | 递归扫描目录下 `.txt`，逐篇跑流水线并写入 `outputs`，支持区间与跳过已存在文件。 |
 | **批量导入 outputs** | 将目录中 `*-output.json` 批量导入同一数据库。 |
 | **记忆抽样** | 从已导入库中按「随机抽样词 → 规范词 → 句」路径抽取句子子集，用于复习、抽检或下游提示词上下文。 |
-| **梦境叙事（dreaming-pipeline）** | 从 `words` 表随机抽样至多 **10** 个词（可调），调用 LLM 写一段光怪陆离的短篇梦幻叙事（纯文本）。 |
+| **story-word-sentence（dreaming）** | CLI：`story-word-sentence-buckets`（单轮写库）与 `story-word-sentence-pipeline`（多轮汇总）；实现与库入口在 `src/dreaming-pipeline/story-word-sentence-pipeline/`（`dreaming-pipeline/index.ts` 再导出）。 |
 | **OpenClaw 插件** | 在网关侧把对话增量写入同一套 SQLite 记忆库（可配置库路径与开关）。 |
 
-当前 CLI **以 v2 整篇流水线为主**，并含 **`dream`**（词表抽样 + 梦幻叙事）等辅助命令（无旧版 v1 子命令）。
+当前 CLI **以 v2 整篇流水线为主**；梦境侧仅保留 **`story-word-sentence-buckets`** / **`story-word-sentence-pipeline`**（无旧版 v1 子命令）。
 
 ---
 
@@ -211,7 +211,6 @@ AI 根据这些记忆 + 当前查询回复
 
 - **`OPENAI_BASE_URL`**：自定义网关或代理（如兼容 OpenAI 协议的第三方端点）。  
 - **`MEMOK_LLM_MODEL`**：**默认模型**，整篇流水线各阶段共用（一般只配这一项即可）。  
-- **`MEMOK_DREAMING_LLM_MODEL`**（可选）：**`dream`** 子命令专用；未设时与 `MEMOK_LLM_MODEL` 相同。  
 - **按需覆盖**：`MEMOK_V2_ARTICLE_CORE_WORDS_LLM_MODEL`、`MEMOK_V2_ARTICLE_CORE_WORDS_NORMALIZE_LLM_MODEL`、`MEMOK_V2_ARTICLE_SENTENCES_LLM_MODEL` 等（仅当某一阶段要用不同模型时再设；解析顺序见各模块 `resolveModel`）。  
 - **`MEMOK_V2_ARTICLE_SENTENCES_MAX_OUTPUT_TOKENS`**：记忆句阶段输出 token 上限（默认 8192）。  
 - **`MEMOK_CORE_WORDS_NORMALIZE_MAX_OUTPUT_TOKENS`**：归一阶段输出上限（默认较大；部分供应商分支会再 cap）。  
@@ -337,107 +336,43 @@ npm test
 - **非长期短期句**：在候选池中按 `weight + duration` **无放回加权随机**抽取约 `longTermFraction` 对应条数（具体公式见实现与测试）。  
 - 每条带 **`matched_word`: `{ word, normal_word }`**：在本次抽样词顺序下，**最先**能连到该句的那条「表层词 → 规范词」边，便于解释「因哪个词命中该句」。
 
-### `dream`
+### `story-word-sentence-buckets`
 
-从 **`words` 表**无放回随机抽样至多 **`--max-words`** 个词（默认 **10**；若表内词总数更少则全部抽中），调用 LLM 生成一段**中文梦幻叙事**，**纯文本**打印到 stdout（非 JSON）。需配置 **`OPENAI_API_KEY`**（及可选 **`OPENAI_BASE_URL`**）；可选用 **`MEMOK_DREAMING_LLM_MODEL`** 覆盖默认模型。
-
-**手测示例：**
-
-```bash
-npm run dev -- dream --db ./memok.sqlite
-```
-
-### `sentence-relevance`
-
-从 `sentences` 表随机抽样约 **20%**（至少 1 条，表非空），与给定 `story` 组成：
-
-```json
-{
-  "story": "string",
-  "sentences": [{ "id": 1, "sentence": "..." }]
-}
-```
-
-交给 LLM 对每条句子做相关性评分，输出 JSON：
-
-```json
-{
-  "sentences": [{ "id": 1, "score": 87 }]
-}
-```
-
-约束：`score` 为 `0-100` 整数；输出条数与输入抽样条数一致；输出 id 集合必须与输入一致。
-
-**手测示例：**
-
-```bash
-# 文件输入
-npm run dev -- sentence-relevance --db ./memok.sqlite --story ./story.txt
-
-# 直接文本输入
-npm run dev -- sentence-relevance --db ./memok.sqlite --story-text "夜里我看见海上的灯塔在说话。"
-```
-
-### `story-sentence-buckets`
-
-一键手测完整链路（无需先准备现成 story）：
+**一轮完整 dreaming（写库 + 清孤立词 + 清孤立句）**：抽词、生成故事、句/词双分支 LLM 相关性、两种 link 回写、删孤立 `normal_words`、合并删孤立 `sentences`。打印到 stdout 的 **JSON 顶层固定包含**（缺一则不算本轮跑完）：`story`、`words`、`relevance`、`buckets`、`sentenceLinkFeedback`、`normalWordRelevance`、`normalWordBuckets`、`normalWordLinkFeedback`、`orphanNormalWordsDeleted`、`orphanSentenceMerge`。
 
 1. 从 `words` 表随机抽样最多 10 个词（可调）  
-2. 用这些词生成梦幻故事  
-3. 从 `sentences` 表随机抽样约 20% 句子做相关性评分  
-4. 输出分桶：`id_ge_50`（`score >= 50`）与 `id_lt_50`
+2. 用这些词生成梦幻故事（**只生成一次**）  
+3. **并行**：从 `sentences` 表随机抽样约 `--fraction` 做句子相关性评分并输出三档分桶 `buckets`（`id_ge_60` / `id_ge_40_lt_60` / `id_lt_40`）；从 `normal_words` 表随机抽样约 `--fraction` 做词语相关性评分（`normalWordRelevance`），并输出同结构三档 **`normalWordBuckets`**（id 为 `normal_words.id`）  
+4. 按 **`buckets`** 与本轮 **`words`** 回写 **`sentence_to_normal_link`** / **`sentences`**（实现为 `applyResultLinkFeedback`）。统计在 **`sentenceLinkFeedback`**（含 `insertedPlusSentenceLinks`）  
+5. 按 **`normalWordBuckets`** 与本轮 **`words`** 回写 **`word_to_normal_link`**：`id_ge_60` 的 `normal_id` 与故事词 `word_id` 之间**已有边则 `weight + 1`，无边则新建 `weight=1`**；`id_lt_40` 的边 `weight - 1`，若 `weight <= 0` 则删除；仅处理 `words` 表命中的 `word_id`；高低分冲突的 `normal_id` 跳过。统计在 **`normalWordLinkFeedback`**（含 `insertedPlusLinks`）  
+6. 删除孤立 `normal_words`：在 `word_to_normal_link` 与 `sentence_to_normal_link` 中**均无**引用者删除，并输出 `orphanNormalWordsDeleted`  
+7. **合并删孤立句子**：将 `sentence_to_normal_link` 中无任何边的句子并入本轮 **`relevance` 最高分句**（逐条 LLM 合并文本），再删除孤儿行；统计在 **`orphanSentenceMerge`**（实现为 `mergeOrphanSentencesIntoTopScored`；内部写临时 `result.json` 仅用于该步读 `relevance`）
 
 **命令示例：**
 
 ```bash
-npm run dev -- story-sentence-buckets --db ./memok.sqlite
+npm run dev -- story-word-sentence-buckets --db ./memok.sqlite
 ```
 
 可选参数：
 
 - `--max-words`：故事生成词数上限（默认 10）
-- `--fraction`：句子抽样比例（默认 0.2）
+- `--fraction`：句子与 `normal_words` 相关性**共用**抽样比例（默认 0.2）
 
-### `apply-result-link-feedback`
+### `story-word-sentence-pipeline`
 
-根据 `result.json` 的 `words` 与分桶句子 id，回写 `sentence_to_normal_link`：
+在同一数据库上**顺序**执行多轮完整的 `story-word-sentence-buckets`（每轮与单次子命令等价）。轮数 `plannedRuns` 在 **`--min-runs`**～**`--max-runs`** 闭区间内**均匀随机**（默认 **3**～**5**）。
 
-- `id_ge_60` 对应 `sentences` 行：`weight + 1` 且 `duration + 1`（不设上限）
-- `id_ge_60` 对应边：`weight + 1`
-- `id_lt_40` 对应边：`weight - 1`
-- 若减后 `weight <= 0`：删除该边
-- 仅处理 `words -> normal_words` 命中的 `normal_id` 对应边
-- 若句子同时在高低分组（冲突）：该句跳过
+stdout **仅输出多轮汇总**（不含每轮的 `story` / `relevance` / `buckets` 等大字段）：`minRuns`、`maxRuns`、`plannedRuns`，以及对各轮 **`sentenceLinkFeedback`**、**`normalWordLinkFeedback`** 的**逐项求和**，**`orphanNormalWordsDeleted.count`** 求和、**`ids`** 为各轮并集去重后升序，**`orphanSentenceMerge`** 为各轮 `orphansFound` / `mergedCount` / `deletedCount` 之和（无 `topSentenceId`）。
 
-**手测示例：**
+stderr 会打印一行 `plannedRuns` 与区间，便于长耗时时确认。
+
+**命令示例：**
 
 ```bash
-npm run dev -- apply-result-link-feedback --db ./test-db/memok.sqlite --result-json ./result.json
-```
-
-### `merge-orphan-sentences`
-
-从 `sentences` 表找出“孤儿句子”（即在 `sentence_to_normal_link` 中没有任何关联行），以 `result.json` 的最高分句子为基准，逐条调用 LLM 合并后删除孤儿句子。
-
-**手测示例：**
-
-```bash
-npm run dev -- merge-orphan-sentences --db ./test-db/memok.sqlite --result-json ./result.json
-```
-
-### `dream-feedback-pipeline`
-
-一键执行完整链路：
-
-1. 从 DB 抽词并生成 dream story
-2. 从 DB 抽句并做相关性评分 + 分桶
-3. 按分桶回写 `sentence_to_normal_link` 与 `sentences` 权重/时长
-4. 扫描孤儿句并与最高分句合并后删除孤儿
-
-**手测示例：**
-
-```bash
-npm run dev -- dream-feedback-pipeline --db ./test-db/memok.sqlite --max-words 10 --fraction 0.2
+npm run dev -- story-word-sentence-pipeline --db ./memok.sqlite
+# 固定区间示例（仍随机选轮数，例如 2～4 轮之一）
+npm run dev -- story-word-sentence-pipeline --db ./memok.sqlite --min-runs 2 --max-runs 4
 ```
 
 ---

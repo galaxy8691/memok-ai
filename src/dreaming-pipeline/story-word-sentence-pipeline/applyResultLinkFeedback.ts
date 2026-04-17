@@ -15,6 +15,8 @@ export type ApplyResultLinkFeedbackResult = {
   matchedNormalIds: number;
   updatedSentenceRows: number;
   updatedPlus: number;
+  /** 高分句与 story `words` 推得的 normal_id 之间原本无 sentence_to_normal_link，新建 weight=1 的行数 */
+  insertedPlusSentenceLinks: number;
   updatedMinus: number;
   deleted: number;
   skippedConflicts: number;
@@ -26,6 +28,10 @@ function uniqIntIds(ids: number[]): number[] {
   return [...new Set(ids.filter((n) => Number.isInteger(n) && n > 0))];
 }
 
+/**
+ * 高分句（`id_ge_60`）：对每个 `(sentence_id, normal_id)`，`normal_id` 来自本轮 `words` 在图上的可达集合；
+ * 已有 `sentence_to_normal_link` 则 weight+1，否则 INSERT `weight=1`。
+ */
 export function applyResultLinkFeedback(
   dbPath: string,
   input: ResultLinkFeedbackInput,
@@ -74,6 +80,7 @@ export function applyResultLinkFeedback(
           matchedNormalIds: 0,
           updatedSentenceRows,
           updatedPlus: 0,
+          insertedPlusSentenceLinks: 0,
           updatedMinus: 0,
           deleted: 0,
           skippedConflicts: conflicts.length,
@@ -84,15 +91,27 @@ export function applyResultLinkFeedback(
 
       const normalPlaceholders = normalIds.map(() => "?").join(", ");
       let updatedPlus = 0;
+      let insertedPlusSentenceLinks = 0;
       if (plusIds.length > 0) {
-        const plusPlaceholders = plusIds.map(() => "?").join(", ");
-        const plusSql = `UPDATE sentence_to_normal_link
-                         SET weight = weight + 1
-                         WHERE sentence_id IN (${plusPlaceholders})
-                           AND normal_id IN (${normalPlaceholders})`;
-        updatedPlus = Number(
-          db.prepare(plusSql).run(...plusIds, ...normalIds).changes,
+        const sel = db.prepare(
+          `SELECT 1 AS ok FROM sentence_to_normal_link WHERE sentence_id = ? AND normal_id = ? LIMIT 1`,
         );
+        const upd = db.prepare(
+          `UPDATE sentence_to_normal_link SET weight = weight + 1 WHERE sentence_id = ? AND normal_id = ?`,
+        );
+        const ins = db.prepare(
+          `INSERT INTO sentence_to_normal_link (sentence_id, normal_id, weight) VALUES (?, ?, 1)`,
+        );
+        for (const sid of plusIds) {
+          for (const nid of normalIds) {
+            if (sel.get(sid, nid) !== undefined) {
+              updatedPlus += Number(upd.run(sid, nid).changes);
+            } else {
+              ins.run(sid, nid);
+              insertedPlusSentenceLinks += 1;
+            }
+          }
+        }
       }
 
       let updatedMinus = 0;
@@ -119,6 +138,7 @@ export function applyResultLinkFeedback(
         matchedNormalIds: normalIds.length,
         updatedSentenceRows,
         updatedPlus,
+        insertedPlusSentenceLinks,
         updatedMinus,
         deleted,
         skippedConflicts: conflicts.length,

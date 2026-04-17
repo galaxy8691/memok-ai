@@ -4,7 +4,7 @@ import {
   isDeepseekCompatibleBaseUrl,
   loadProjectEnv,
   runParseOrJson,
-} from "../llm/openaiCompat.js";
+} from "../../llm/openaiCompat.js";
 
 const ENV_RELEVANCE_MODEL = "MEMOK_SENTENCE_RELEVANCE_LLM_MODEL";
 const ENV_MEMOK_LLM_MODEL = "MEMOK_LLM_MODEL";
@@ -99,25 +99,40 @@ async function scoreOneBatch(
   opts: { client: OpenAI; model: string; budget: number; deepseek: boolean },
 ): Promise<SentenceRelevanceOutput> {
   const userBody = `请对以下输入逐句评分并按指定 JSON 输出：\n${JSON.stringify(parsedInput)}`;
-  const raw = await runParseOrJson({
+  const parseArgs = {
     client: opts.client,
     model: opts.model,
     messagesParse: [
-      { role: "system", content: SYSTEM_PROMPT_SENTENCE_RELEVANCE },
-      { role: "user", content: userBody },
+      { role: "system" as const, content: SYSTEM_PROMPT_SENTENCE_RELEVANCE },
+      { role: "user" as const, content: userBody },
     ],
     messagesJson: [
       {
-        role: "system",
+        role: "system" as const,
         content: `${SYSTEM_PROMPT_SENTENCE_RELEVANCE}\n\n你必须只输出一个合法 JSON 对象。`,
       },
-      { role: "user", content: `${userBody}\n\n只输出 JSON，不要代码围栏。` },
+      { role: "user" as const, content: `${userBody}\n\n只输出 JSON，不要代码围栏。` },
     ],
     schema: SentenceRelevanceOutputSchema,
     responseName: "SentenceRelevanceOutput",
     ...(opts.deepseek ? { maxTokens: opts.budget } : { maxCompletionTokens: opts.budget }),
-  });
-  return validateSentenceRelevanceOutput(parsedInput, raw);
+  };
+
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const raw = await runParseOrJson(parseArgs);
+    try {
+      return validateSentenceRelevanceOutput(parsedInput, raw);
+    } catch (e) {
+      lastError = e;
+      const tooFew = raw.sentences.length < parsedInput.sentences.length;
+      if (attempt === 0 && tooFew) {
+        continue;
+      }
+      throw e;
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error(String(lastError));
 }
 
 export async function scoreSentenceRelevance(

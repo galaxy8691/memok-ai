@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import Database from "better-sqlite3";
 import { describe, expect, it } from "vitest";
-import { sampleSentencesForRelevance } from "../src/dreaming-pipeline/sampleSentencesForRelevance.js";
+import { sampleSentencesForRelevance } from "../src/dreaming-pipeline/story-word-sentence-pipeline/sampleSentencesForRelevance.js";
 
 function mkSentencesDb(dir: string, n: number): string {
   const dbPath = join(dir, "s.sqlite");

@@ -3,7 +3,7 @@ import {
   SentenceRelevanceInputSchema,
   SentenceRelevanceOutputSchema,
   validateSentenceRelevanceOutput,
-} from "../src/dreaming-pipeline/scoreSentenceRelevance.js";
+} from "../src/dreaming-pipeline/story-word-sentence-pipeline/scoreSentenceRelevance.js";
 
 describe("validateSentenceRelevanceOutput", () => {
   const input = SentenceRelevanceInputSchema.parse({
