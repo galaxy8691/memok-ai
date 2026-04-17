@@ -18,6 +18,16 @@ run_with_timeout() {
   fi
 }
 
+run_openclaw_plugins_install() {
+  local dir="$1"
+  if [ "${MEMOK_PLUGINS_INSTALL_NO_PTY:-0}" != "1" ] && [ "$(uname -s)" = Linux ] && command -v script >/dev/null 2>&1; then
+    echo "[memok-ai installer] running plugins install inside a pseudo-TTY (Linux)."
+    script -qec "openclaw plugins install $(printf %q "$dir")" /dev/null
+  else
+    openclaw plugins install "$dir"
+  fi
+}
+
 need_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
     echo "[memok-ai installer] missing required command: $1" >&2
@@ -55,16 +65,17 @@ npm --prefix "$TARGET_DIR" install
 npm --prefix "$TARGET_DIR" run build
 
 echo "[memok-ai installer] installing plugin via OpenClaw (may take a while)..."
+echo "[memok-ai installer] if stuck after OpenClaw's last line, try MEMOK_PLUGINS_INSTALL_NO_PTY=1 or Ctrl+C then: openclaw memok setup"
 plugins_to="${MEMOK_PLUGINS_INSTALL_TIMEOUT_SECONDS:-0}"
 if [ "$plugins_to" -gt 0 ] 2>/dev/null; then
   echo "[memok-ai installer] plugins install bounded by ${plugins_to}s (MEMOK_PLUGINS_INSTALL_TIMEOUT_SECONDS)."
-  if ! run_with_timeout "$plugins_to" openclaw plugins install "$TARGET_DIR"; then
+  if ! run_with_timeout "$plugins_to" bash -c "$(declare -f run_openclaw_plugins_install); run_openclaw_plugins_install \"\$1\"" _ "$TARGET_DIR"; then
     echo "[memok-ai installer] error: openclaw plugins install failed or timed out." >&2
     echo "[memok-ai installer] try: openclaw plugins install \"$TARGET_DIR\"" >&2
     exit 1
   fi
 else
-  openclaw plugins install "$TARGET_DIR"
+  run_openclaw_plugins_install "$TARGET_DIR"
 fi
 
 echo "[memok-ai installer] install step finished; next: memok setup (restart the gateway yourself when you want new plugins loaded)."

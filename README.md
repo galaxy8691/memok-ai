@@ -64,7 +64,10 @@ Installer behavior:
 Useful installer env vars:
 
 - `MEMOK_PLUGINS_INSTALL_TIMEOUT_SECONDS` (optional; seconds cap for `openclaw plugins install`, `0` = no limit)
+- `MEMOK_PLUGINS_INSTALL_NO_PTY=1` (Linux: skip `script`-based pseudo-TTY wrapper; use if the default wrapper misbehaves)
 - `MEMOK_KEEP_SOURCE=1` (keep source directory for debugging)
+
+If `openclaw plugins install` prints success but never returns (so the installer never reaches the next line), that is usually OpenClaw’s CLI not exiting; on Linux the installer runs the command inside `script` to reduce that. You can also `Ctrl+C` and run `openclaw memok setup` if the plugin files are already installed. Avoid registering the same plugin twice (e.g. both `memok-ai` and `memok-ai-src` paths) — remove the duplicate entry in `openclaw.json` to silence “duplicate plugin id” warnings.
 
 If setup fails with `plugins.allow excludes "memok"`, add `"memok"` to `~/.openclaw/openclaw.json` under `plugins.allow`, then rerun:
 

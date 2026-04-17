@@ -28,6 +28,18 @@ run_with_timeout() {
   fi
 }
 
+# OpenClaw may print "Installed plugin" / "Restart the gateway..." and still not exit (Node/readline/gateway RPC).
+# Running under a pseudo-TTY on Linux often lets the process finish; set MEMOK_PLUGINS_INSTALL_NO_PTY=1 to force plain `openclaw`.
+run_openclaw_plugins_install() {
+  local dir="$1"
+  if [ "${MEMOK_PLUGINS_INSTALL_NO_PTY:-0}" != "1" ] && [ "$(uname -s)" = Linux ] && command -v script >/dev/null 2>&1; then
+    echo "[memok-ai cn installer] running plugins install inside a pseudo-TTY (Linux; avoids some OpenClaw hangs after the last log line)."
+    script -qec "openclaw plugins install $(printf %q "$dir")" /dev/null
+  else
+    openclaw plugins install "$dir"
+  fi
+}
+
 need_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
     echo "[memok-ai cn installer] missing required command: $1" >&2
@@ -81,16 +93,17 @@ npm --prefix "$TARGET_DIR" install --registry "$NPM_REGISTRY" --prefer-offline -
 npm --prefix "$TARGET_DIR" run build
 
 echo "[memok-ai cn installer] installing plugin via OpenClaw (may take a while; do not confuse with the next installer lines)..."
+echo "[memok-ai cn installer] if it stops after OpenClaw prints 'Installed plugin' with no '[memok-ai cn installer] install step finished', the CLI is stuck — try MEMOK_PLUGINS_INSTALL_NO_PTY=1, or Ctrl+C then: openclaw memok setup"
 plugins_to="${MEMOK_PLUGINS_INSTALL_TIMEOUT_SECONDS:-0}"
 if [ "$plugins_to" -gt 0 ] 2>/dev/null; then
   echo "[memok-ai cn installer] plugins install bounded by ${plugins_to}s (MEMOK_PLUGINS_INSTALL_TIMEOUT_SECONDS); unset or 0 = no limit."
-  if ! run_with_timeout "$plugins_to" openclaw plugins install "$TARGET_DIR"; then
+  if ! run_with_timeout "$plugins_to" bash -c "$(declare -f run_openclaw_plugins_install); run_openclaw_plugins_install \"\$1\"" _ "$TARGET_DIR"; then
     echo "[memok-ai cn installer] error: openclaw plugins install failed or timed out." >&2
     echo "[memok-ai cn installer] try: openclaw plugins install \"$TARGET_DIR\"  # or raise MEMOK_PLUGINS_INSTALL_TIMEOUT_SECONDS" >&2
     exit 1
   fi
 else
-  openclaw plugins install "$TARGET_DIR"
+  run_openclaw_plugins_install "$TARGET_DIR"
 fi
 
 echo "[memok-ai cn installer] install step finished; next: memok setup (restart the gateway yourself when you want new plugins loaded)."
