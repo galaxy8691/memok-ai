@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+if [ -r /dev/tty ]; then
+  exec < /dev/tty || true
+fi
+
 REPO_URL="${MEMOK_REPO_URL:-https://github.com/galaxy8691/memok-ai.git}"
 TARGET_DIR="${MEMOK_INSTALL_DIR:-$HOME/.openclaw/extensions/memok-ai-src}"
 
@@ -86,8 +90,18 @@ echo "[memok-ai installer] building plugin dist..."
 npm --prefix "$TARGET_DIR" install
 npm --prefix "$TARGET_DIR" run build
 
-echo "[memok-ai installer] installing plugin..."
-openclaw plugins install "$TARGET_DIR"
+echo "[memok-ai installer] installing plugin via OpenClaw (may take a while)..."
+plugins_to="${MEMOK_PLUGINS_INSTALL_TIMEOUT_SECONDS:-0}"
+if [ "$plugins_to" -gt 0 ] 2>/dev/null; then
+  echo "[memok-ai installer] plugins install bounded by ${plugins_to}s (MEMOK_PLUGINS_INSTALL_TIMEOUT_SECONDS)."
+  if ! run_with_timeout "$plugins_to" openclaw plugins install "$TARGET_DIR"; then
+    echo "[memok-ai installer] error: openclaw plugins install failed or timed out." >&2
+    echo "[memok-ai installer] try: openclaw plugins install \"$TARGET_DIR\"" >&2
+    exit 1
+  fi
+else
+  openclaw plugins install "$TARGET_DIR"
+fi
 
 echo "[memok-ai installer] install step finished; next: gateway restart then memok setup."
 restart_gateway "load newly installed plugin"

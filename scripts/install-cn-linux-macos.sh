@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Long-running `openclaw` subprocesses may wait on stdin; when stdin is not a real TTY (or is inherited oddly),
+# `openclaw plugins install` can appear stuck after "Installed plugin". Prefer the controlling terminal.
+if [ -r /dev/tty ]; then
+  exec < /dev/tty || true
+fi
+
 # China-optimized installer:
 # - Default to GitHub repo source
 # - Optional custom repo mirror via MEMOK_REPO_URL_CN
@@ -110,8 +116,18 @@ echo "[memok-ai cn installer] building plugin dist (registry: $NPM_REGISTRY)..."
 npm --prefix "$TARGET_DIR" install --registry "$NPM_REGISTRY" --prefer-offline --no-audit --progress=false
 npm --prefix "$TARGET_DIR" run build
 
-echo "[memok-ai cn installer] installing plugin..."
-openclaw plugins install "$TARGET_DIR"
+echo "[memok-ai cn installer] installing plugin via OpenClaw (may take a while; do not confuse with the next installer lines)..."
+plugins_to="${MEMOK_PLUGINS_INSTALL_TIMEOUT_SECONDS:-0}"
+if [ "$plugins_to" -gt 0 ] 2>/dev/null; then
+  echo "[memok-ai cn installer] plugins install bounded by ${plugins_to}s (MEMOK_PLUGINS_INSTALL_TIMEOUT_SECONDS); unset or 0 = no limit."
+  if ! run_with_timeout "$plugins_to" openclaw plugins install "$TARGET_DIR"; then
+    echo "[memok-ai cn installer] error: openclaw plugins install failed or timed out." >&2
+    echo "[memok-ai cn installer] try: openclaw plugins install \"$TARGET_DIR\"  # or raise MEMOK_PLUGINS_INSTALL_TIMEOUT_SECONDS" >&2
+    exit 1
+  fi
+else
+  openclaw plugins install "$TARGET_DIR"
+fi
 
 echo "[memok-ai cn installer] install step finished; next: gateway restart then memok setup."
 restart_gateway "load newly installed plugin"
