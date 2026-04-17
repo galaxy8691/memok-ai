@@ -1,9 +1,9 @@
-import Database from "better-sqlite3";
 import { Cron } from "croner";
 import {
   type RunDreamingPipelineFromDbOpts,
   runDreamingPipelineFromDb,
 } from "../dreaming-pipeline/runDreamingPipelineFromDb.js";
+import { openSqlite } from "../sqlite/openSqlite.js";
 
 export type PluginLoggerLike = {
   info?: (msg: string) => void;
@@ -35,7 +35,7 @@ export function registerDreamingPipelineCron(params: {
 
   const insertDreamLog = (row: Record<string, unknown>): void => {
     try {
-      const db = new Database(dbPath);
+      const db = openSqlite(dbPath, undefined, (m) => logger.warn?.(m));
       try {
         db.pragma("foreign_keys = ON");
         db.exec(

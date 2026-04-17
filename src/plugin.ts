@@ -10,7 +10,6 @@ import {
   type MemokPluginEntry,
   expandUserPath,
   getDefaultDbPath,
-  getDefaultMemoryFeedbackLogPath,
   resolveMemokDbPathFromConfig,
 } from "./plugin/memokTypes.js";
 import {
@@ -152,16 +151,10 @@ export default definePluginEntry({
     const extractFraction = pluginCfg.extractFraction ?? 0.2;
     const longTermFraction = pluginCfg.longTermFraction ?? extractFraction;
     const maxInjectChars = Math.max(512, pluginCfg.maxInjectChars ?? 12_000);
-    const memoryFeedbackLogPath = expandUserPath(
-      pluginCfg.memoryFeedbackLogPath || getDefaultMemoryFeedbackLogPath(),
-    );
     api.logger?.info(`[memok-ai] 已启用，数据库: ${dbPath}`);
     if (memoryInjectEnabled) {
       api.logger?.info(
         `[memok-ai] 记忆召回: mode=${memoryRecallMode}, fraction=${extractFraction}, longTermFraction=${longTermFraction}, maxInjectChars=${maxInjectChars}`,
-      );
-      api.logger?.info(
-        `[memok-ai] 记忆反馈 JSONL（调试）: ${memoryFeedbackLogPath}`,
       );
     }
     const persistTranscriptToMemory =
@@ -180,7 +173,6 @@ export default definePluginEntry({
       extractFraction,
       longTermFraction,
       maxInjectChars,
-      memoryFeedbackLogPath,
       persistTranscriptToMemory,
     };
     registerMemokPluginRuntime(api, runtimeCtx);

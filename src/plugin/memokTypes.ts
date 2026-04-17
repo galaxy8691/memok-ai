@@ -17,10 +17,6 @@ export function expandUserPath(p: string): string {
   return t;
 }
 
-export function getDefaultMemoryFeedbackLogPath(): string {
-  return join(homedir(), ".openclaw/extensions/memok-ai/memory-feedback.jsonl");
-}
-
 export function resolveMemokDbPathFromConfig(
   root: Record<string, unknown>,
 ): string {
@@ -51,7 +47,6 @@ export interface MemokConfig extends MemokLlmEnvConfig {
   extractFraction?: number;
   longTermFraction?: number;
   maxInjectChars?: number;
-  memoryFeedbackLogPath?: string;
   persistTranscriptToMemory?: boolean;
   dreamingPipelineScheduleEnabled?: boolean;
   dreamingPipelineDailyAt?: string;

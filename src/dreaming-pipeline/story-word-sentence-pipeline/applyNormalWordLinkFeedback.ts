@@ -1,5 +1,5 @@
-import Database from "better-sqlite3";
 import { z } from "zod";
+import { openSqlite } from "../../sqlite/openSqlite.js";
 import { NormalWordRelevanceBucketsSchema } from "./buildRelevanceBuckets.js";
 
 export const NormalWordLinkFeedbackInputSchema = z
@@ -49,7 +49,7 @@ export function applyNormalWordLinkFeedback(
   const minusIds = minusIdsRaw.filter((id) => !conflictSet.has(id));
   const words = [...new Set(parsed.words.map((w) => w.trim()).filter(Boolean))];
 
-  const db = new Database(dbPath);
+  const db = openSqlite(dbPath);
   try {
     db.pragma("foreign_keys = ON");
     const runTx = db.transaction((): ApplyNormalWordLinkFeedbackResult => {

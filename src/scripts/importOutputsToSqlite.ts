@@ -6,11 +6,11 @@ import {
   writeFileSync,
 } from "node:fs";
 import { basename, extname, join, resolve } from "node:path";
-import Database from "better-sqlite3";
 import {
   importAwpV2Tuple,
   parseAwpV2TupleJson,
 } from "../sqlite/awpV2Import.js";
+import { openSqlite } from "../sqlite/openSqlite.js";
 
 type CliOptions = {
   inputDir: string;
@@ -81,7 +81,7 @@ function main(): void {
     return;
   }
 
-  const db = new Database(dbPath);
+  const db = openSqlite(dbPath);
 
   let ok = 0;
   const errors: string[] = [];

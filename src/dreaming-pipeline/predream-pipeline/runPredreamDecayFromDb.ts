@@ -1,4 +1,5 @@
-import Database from "better-sqlite3";
+import type Database from "better-sqlite3";
+import { openSqlite } from "../../sqlite/openSqlite.js";
 
 export type PredreamDecayResult = {
   /** 全局 `duration = duration - 1` 影响的行数 */
@@ -22,7 +23,7 @@ function tableExists(db: Database.Database, name: string): boolean {
  * - `weight < 7` → 删除句子（先删 `sentence_to_normal_link` 若表存在）
  */
 export function runPredreamDecayFromDb(dbPath: string): PredreamDecayResult {
-  const db = new Database(dbPath);
+  const db = openSqlite(dbPath);
   try {
     db.pragma("foreign_keys = ON");
     const runTx = db.transaction((): PredreamDecayResult => {

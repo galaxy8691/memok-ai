@@ -1,5 +1,6 @@
-import Database from "better-sqlite3";
+import type Database from "better-sqlite3";
 import { z } from "zod";
+import { openSqlite } from "../sqlite/openSqlite.js";
 
 /** 经本次 words 抽样、经哪条「词 → 规范词」边连到该句（仅保留抽样顺序下最先命中的那一对） */
 export const WordMatchLinkSchema = z
@@ -129,7 +130,7 @@ export function extractMemorySentencesByWordSample(
   const fraction = opts?.fraction ?? 0.2;
   const longTermFraction = opts?.longTermFraction ?? fraction;
   const ownDb = typeof dbOrPath === "string";
-  const db = ownDb ? new Database(dbOrPath) : dbOrPath;
+  const db = ownDb ? openSqlite(dbOrPath) : dbOrPath;
   try {
     db.pragma("foreign_keys = ON");
     const countRow = db.prepare("SELECT COUNT(*) as c FROM words").get() as {

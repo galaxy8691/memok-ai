@@ -5,7 +5,6 @@ import { saveTextToMemoryDb } from "../memory/saveTextToMemoryDb.js";
 import { applySentenceUsageFeedback } from "../sqlite/applySentenceUsageFeedback.js";
 import { scrubOpenclawHeartbeatArtifacts } from "../utils/scrubOpenclawHeartbeatArtifacts.js";
 import { stripMemokInjectEchoFromTranscript } from "../utils/stripMemokInjectEchoFromTranscript.js";
-import { appendFeedbackJsonl } from "./feedbackJsonl.js";
 import type { MemokConfig } from "./memokTypes.js";
 import { cronPatternFromDailyAt, isMemokSetupCliRun } from "./memokTypes.js";
 import {
@@ -39,7 +38,6 @@ export type MemokRuntimeContext = {
   extractFraction: number;
   longTermFraction: number;
   maxInjectChars: number;
-  memoryFeedbackLogPath: string;
   persistTranscriptToMemory: boolean;
 };
 
@@ -55,7 +53,6 @@ export function registerMemokPluginRuntime(
     extractFraction,
     longTermFraction,
     maxInjectChars,
-    memoryFeedbackLogPath,
     persistTranscriptToMemory,
   } = ctx;
 
@@ -333,25 +330,6 @@ export function registerMemokPluginRuntime(
                 const msg =
                   error instanceof Error ? error.message : String(error);
                 api.logger?.error(`[memok-ai] 记忆反馈写库失败: ${msg}`);
-                if (sentenceIds.length > 0) {
-                  try {
-                    appendFeedbackJsonl(memoryFeedbackLogPath, {
-                      ts: new Date().toISOString(),
-                      sessionKey: toolCtx.sessionKey,
-                      sessionId: toolCtx.sessionId,
-                      sentenceIds,
-                      validIds,
-                      updatedCount: 0,
-                      dbError: msg,
-                    });
-                  } catch (logErr: unknown) {
-                    const lm =
-                      logErr instanceof Error ? logErr.message : String(logErr);
-                    api.logger?.warn?.(
-                      `[memok-ai] 写记忆反馈 JSONL 失败: ${lm}`,
-                    );
-                  }
-                }
                 return {
                   content: [
                     {
@@ -363,36 +341,12 @@ export function registerMemokPluginRuntime(
                 };
               }
             }
-            let feedbackJsonlOk = true;
-            if (sentenceIds.length > 0) {
-              try {
-                appendFeedbackJsonl(memoryFeedbackLogPath, {
-                  ts: new Date().toISOString(),
-                  sessionKey: toolCtx.sessionKey,
-                  sessionId: toolCtx.sessionId,
-                  sentenceIds,
-                  validIds,
-                  updatedCount,
-                });
-              } catch (logErr: unknown) {
-                feedbackJsonlOk = false;
-                const lm =
-                  logErr instanceof Error ? logErr.message : String(logErr);
-                api.logger?.warn?.(`[memok-ai] 写记忆反馈 JSONL 失败: ${lm}`);
-              }
-            }
-            const logHint =
-              sentenceIds.length > 0
-                ? feedbackJsonlOk
-                  ? "；JSONL 调试日志已追加。"
-                  : "；JSONL 调试日志写入失败，见网关日志。"
-                : "";
             const text =
               sentenceIds.length === 0
                 ? "未上报任何 id（空数组）。若你未使用候选记忆，这是正确的；若使用了请传入对应 id。"
                 : validIds.length === 0
-                  ? `上报的 id 均不在本轮可校验的候选列表内，未更新数据库。${logHint}`
-                  : `已更新 ${updatedCount} 条句子（weight 每次+1；跨日则当日 duration 计数从 1 起；同日 duration 最多+3 次）${logHint}`;
+                  ? "上报的 id 均不在本轮可校验的候选列表内，未更新数据库。"
+                  : `已更新 ${updatedCount} 条句子（weight 每次+1；跨日则当日 duration 计数从 1 起；同日 duration 最多+3 次）`;
             return {
               content: [{ type: "text" as const, text }],
               details: {
@@ -400,8 +354,6 @@ export function registerMemokPluginRuntime(
                 updatedCount,
                 sentenceIds,
                 validIds,
-                feedbackJsonl:
-                  sentenceIds.length > 0 ? feedbackJsonlOk : undefined,
               },
             };
           },

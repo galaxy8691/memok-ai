@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
-import Database from "better-sqlite3";
 import { z } from "zod";
+import { openSqlite } from "../../sqlite/openSqlite.js";
 import { mergeSentenceText } from "./mergeSentenceText.js";
 import { SentenceRelevanceOutputSchema } from "./scoreSentenceRelevance.js";
 
@@ -54,7 +54,7 @@ export async function mergeOrphanSentencesIntoTopScored(
   const topSentenceId = pickTopSentenceId(parsed);
   const mergeFn: MergeFn = opts?.mergeFn ?? mergeSentenceText;
 
-  const db = new Database(dbPath);
+  const db = openSqlite(dbPath);
   try {
     db.pragma("foreign_keys = ON");
     const topRow = db

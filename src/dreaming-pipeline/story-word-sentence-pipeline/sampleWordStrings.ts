@@ -1,4 +1,4 @@
-import Database from "better-sqlite3";
+import { openSqlite } from "../../sqlite/openSqlite.js";
 
 const DEFAULT_MAX_WORDS = 10;
 
@@ -19,7 +19,7 @@ export function sampleWordStrings(
     Number.isFinite(rawCap) && rawCap > 0
       ? Math.floor(rawCap)
       : DEFAULT_MAX_WORDS;
-  const db = new Database(dbPath, { readonly: true });
+  const db = openSqlite(dbPath, { readonly: true });
   try {
     db.pragma("foreign_keys = ON");
     const countRow = db.prepare("SELECT COUNT(*) as c FROM words").get() as {

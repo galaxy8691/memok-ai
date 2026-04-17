@@ -188,7 +188,7 @@ export async function runParseOrJson<T>(
   }
 
   try {
-    const completion = await (client.chat.completions as any).parse({
+    const completion = await client.chat.completions.parse({
       model,
       messages: messagesParse,
       response_format: zodResponseFormat(schema, responseName),

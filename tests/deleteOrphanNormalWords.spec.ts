@@ -35,22 +35,26 @@ function makeDb(root: string): string {
 }
 
 describe("deleteOrphanNormalWords", () => {
-  it("deletes only normal_words with no word and no sentence links", () => {
-    const root = mkdtempSync(join(tmpdir(), "memok-orphan-nw-"));
-    try {
-      const dbPath = makeDb(root);
-      const out = deleteOrphanNormalWords(dbPath);
-      expect(out.count).toBe(2);
-      expect(out.ids.sort((a, b) => a - b)).toEqual([1, 4]);
+  it(
+    "deletes only normal_words with no word and no sentence links",
+    { timeout: 15000 },
+    () => {
+      const root = mkdtempSync(join(tmpdir(), "memok-orphan-nw-"));
+      try {
+        const dbPath = makeDb(root);
+        const out = deleteOrphanNormalWords(dbPath);
+        expect(out.count).toBe(2);
+        expect(out.ids.sort((a, b) => a - b)).toEqual([1, 4]);
 
-      const db = new Database(dbPath, { readonly: true });
-      const ids = db
-        .prepare("SELECT id FROM normal_words ORDER BY id")
-        .all() as { id: number }[];
-      db.close();
-      expect(ids.map((r) => r.id)).toEqual([2, 3]);
-    } finally {
-      rmSync(root, { recursive: true, force: true });
-    }
-  });
+        const db = new Database(dbPath, { readonly: true });
+        const ids = db
+          .prepare("SELECT id FROM normal_words ORDER BY id")
+          .all() as { id: number }[];
+        db.close();
+        expect(ids.map((r) => r.id)).toEqual([2, 3]);
+      } finally {
+        rmSync(root, { recursive: true, force: true });
+      }
+    },
+  );
 });

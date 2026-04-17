@@ -15,8 +15,10 @@ It extracts structured memory units with OpenAI-compatible LLM APIs and stores t
 
 ## Requirements
 
-- Node.js 18+
+- Node.js **≥20** (LTS recommended)
 - npm
+
+**OpenClaw plugin:** gateway **≥2026.3.24** and plugin API **≥2026.3.24** (see `openclaw.compat` in [package.json](package.json)).
 
 Install dependencies:
 

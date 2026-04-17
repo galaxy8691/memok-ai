@@ -5,6 +5,18 @@ import {
   mergeMemokSetupToConfig,
 } from "../src/plugin/setupWizard.js";
 
+type MergedPlugins = {
+  entries?: Record<
+    string,
+    { enabled?: boolean; config?: Record<string, unknown> }
+  >;
+  slots?: { memory?: string };
+};
+
+function pluginsShape(out: unknown): MergedPlugins | undefined {
+  return (out as { plugins?: MergedPlugins }).plugins;
+}
+
 describe("setupWizard helpers", () => {
   it("validates HH:mm format", () => {
     expect(isValidDailyAt("03:00")).toBe(true);
@@ -38,15 +50,14 @@ describe("setupWizard helpers", () => {
       dreamingPipelineTimezone: "Asia/Shanghai",
     };
     const out = mergeMemokSetupToConfig(cur, answers);
-    const memok = ((out.plugins as any).entries["memok-ai"] as any).config;
-    expect(((out.plugins as any).entries["memok-ai"] as any).enabled).toBe(
-      true,
-    );
-    expect(memok.dbPath).toBe("/tmp/m.db");
-    expect(memok.llmProvider).toBe("deepseek");
-    expect(memok.llmModelPreset).toBe("deepseek-chat");
-    expect(memok.dreamingPipelineDailyAt).toBe("03:00");
-    expect(((out.plugins as any).slots as any).memory).toBe("memok-ai");
+    const entry = pluginsShape(out)?.entries?.["memok-ai"];
+    const memok = entry?.config;
+    expect(entry?.enabled).toBe(true);
+    expect(memok?.dbPath).toBe("/tmp/m.db");
+    expect(memok?.llmProvider).toBe("deepseek");
+    expect(memok?.llmModelPreset).toBe("deepseek-chat");
+    expect(memok?.dreamingPipelineDailyAt).toBe("03:00");
+    expect(pluginsShape(out)?.slots?.memory).toBe("memok-ai");
   });
 
   it("removes undefined optional values", () => {
@@ -60,11 +71,11 @@ describe("setupWizard helpers", () => {
       dreamingPipelineScheduleEnabled: false,
     };
     const out = mergeMemokSetupToConfig({}, answers);
-    const memok = ((out.plugins as any).entries["memok-ai"] as any).config;
-    expect(memok.llmProvider).toBe("custom");
-    expect(memok.llmBaseUrl).toBe("https://x/v1");
-    expect(memok.llmApiKey).toBeUndefined();
-    expect(memok.llmModel).toBeUndefined();
+    const memok = pluginsShape(out)?.entries?.["memok-ai"]?.config;
+    expect(memok?.llmProvider).toBe("custom");
+    expect(memok?.llmBaseUrl).toBe("https://x/v1");
+    expect(memok?.llmApiKey).toBeUndefined();
+    expect(memok?.llmModel).toBeUndefined();
   });
 
   it("removes memok slot when non-exclusive selected", () => {
@@ -79,6 +90,6 @@ describe("setupWizard helpers", () => {
       dreamingPipelineScheduleEnabled: false,
     };
     const out = mergeMemokSetupToConfig(cur, answers);
-    expect(((out.plugins as any).slots as any).memory).toBeUndefined();
+    expect(pluginsShape(out)?.slots?.memory).toBeUndefined();
   });
 });

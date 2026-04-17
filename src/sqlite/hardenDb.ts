@@ -1,4 +1,5 @@
-import Database from "better-sqlite3";
+import type Database from "better-sqlite3";
+import { openSqlite } from "./openSqlite.js";
 
 /**
  * 数据库结构加固（幂等）：
@@ -67,7 +68,7 @@ export function hardenDb(db: Database.Database): void {
 }
 
 export function hardenDbFile(dbPath: string): void {
-  const db = new Database(dbPath);
+  const db = openSqlite(dbPath);
   try {
     hardenDb(db);
   } finally {

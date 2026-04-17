@@ -1,10 +1,11 @@
 import { readFileSync } from "node:fs";
-import Database from "better-sqlite3";
+import type Database from "better-sqlite3";
 import {
   type ArticleCoreWordsNomalizedData,
   type ArticleSentenceCoreCombinedData,
   AwpV2TupleSchema,
 } from "../article-word-pipeline/v2/schemas.js";
+import { openSqlite } from "./openSqlite.js";
 
 export function parseAwpV2TupleJson(
   data: unknown,
@@ -152,7 +153,7 @@ export function importAwpV2TupleFromPaths(
 ): void {
   const raw = JSON.parse(readFileSync(jsonPath, "utf-8"));
   const [sc, nm] = parseAwpV2TupleJson(raw);
-  const db = new Database(dbPath);
+  const db = openSqlite(dbPath);
   try {
     const tx = db.transaction(() => {
       importAwpV2Tuple(db, sc, nm, opts);

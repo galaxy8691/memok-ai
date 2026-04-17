@@ -1,4 +1,4 @@
-import Database from "better-sqlite3";
+import { openSqlite } from "../../sqlite/openSqlite.js";
 
 const DEFAULT_FRACTION = 0.2;
 
@@ -20,7 +20,7 @@ export function sampleNormalWordsForRelevance(
   opts?: SampleNormalWordsForRelevanceOpts,
 ): RelevanceNormalWordItem[] {
   const fraction = opts?.fraction ?? DEFAULT_FRACTION;
-  const db = new Database(dbPath, { readonly: true });
+  const db = openSqlite(dbPath, { readonly: true });
   try {
     db.pragma("foreign_keys = ON");
     const countRow = db

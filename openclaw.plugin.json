@@ -42,9 +42,7 @@
     "allOf": [
       {
         "if": {
-          "required": [
-            "llmProvider"
-          ],
+          "required": ["llmProvider"],
           "properties": {
             "llmProvider": {
               "const": "custom"
@@ -52,9 +50,7 @@
           }
         },
         "then": {
-          "required": [
-            "llmBaseUrl"
-          ]
+          "required": ["llmBaseUrl"]
         }
       },
       {
@@ -68,12 +64,7 @@
         "then": {
           "properties": {
             "llmModelPreset": {
-              "enum": [
-                "gpt-4o-mini",
-                "gpt-4.1-mini",
-                "gpt-4.1-nano",
-                "gpt-4o"
-              ]
+              "enum": ["gpt-4o-mini", "gpt-4.1-mini", "gpt-4.1-nano", "gpt-4o"]
             }
           }
         }
@@ -89,10 +80,7 @@
         "then": {
           "properties": {
             "llmModelPreset": {
-              "enum": [
-                "deepseek-chat",
-                "deepseek-v3"
-              ]
+              "enum": ["deepseek-chat", "deepseek-v3"]
             }
           }
         }
@@ -108,10 +96,7 @@
         "then": {
           "properties": {
             "llmModelPreset": {
-              "enum": [
-                "openai/gpt-4o-mini",
-                "openai/gpt-4.1-mini"
-              ]
+              "enum": ["openai/gpt-4o-mini", "openai/gpt-4.1-mini"]
             }
           }
         }
@@ -127,10 +112,7 @@
         "then": {
           "properties": {
             "llmModelPreset": {
-              "enum": [
-                "moonshot-v1-8k",
-                "moonshot-v1-32k"
-              ]
+              "enum": ["moonshot-v1-8k", "moonshot-v1-32k"]
             }
           }
         }
@@ -146,10 +128,7 @@
         "then": {
           "properties": {
             "llmModelPreset": {
-              "enum": [
-                "Qwen/Qwen2.5-7B-Instruct",
-                "deepseek-ai/DeepSeek-V3"
-              ]
+              "enum": ["Qwen/Qwen2.5-7B-Instruct", "deepseek-ai/DeepSeek-V3"]
             }
           }
         }
@@ -165,10 +144,7 @@
         "then": {
           "properties": {
             "llmModelPreset": {
-              "enum": [
-                "qwen2.5:7b-instruct",
-                "llama3.1:8b-instruct"
-              ]
+              "enum": ["qwen2.5:7b-instruct", "llama3.1:8b-instruct"]
             }
           }
         }
@@ -261,11 +237,6 @@
         "type": "number",
         "description": "单次注入 prependContext 的最大字符数（防止撑爆上下文）",
         "default": 12000
-      },
-      "memoryFeedbackLogPath": {
-        "type": "string",
-        "description": "memok_report_used_memory_ids 非空上报时追加的 JSONL（调试用；含 sentenceIds、validIds、updatedCount；与写库并行）",
-        "default": "~/.openclaw/extensions/memok-ai/memory-feedback.jsonl"
       },
       "dreamingPipelineScheduleEnabled": {
         "type": "boolean",

@@ -1,4 +1,4 @@
-import Database from "better-sqlite3";
+import { openSqlite } from "./openSqlite.js";
 
 export type ApplySentenceUsageFeedbackOptions = {
   /** 与 `awpV2Import` 一致，默认 `YYYY-MM-DD`（UTC） */
@@ -29,7 +29,7 @@ export function applySentenceUsageFeedback(
     return { updatedCount: 0 };
   }
   const dateStr = opts?.lastEditDate ?? new Date().toISOString().slice(0, 10);
-  const db = new Database(dbPath);
+  const db = openSqlite(dbPath);
   try {
     db.pragma("foreign_keys = ON");
     const stmt = db.prepare(

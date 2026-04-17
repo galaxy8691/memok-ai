@@ -4,6 +4,8 @@ Thanks for contributing.
 
 ## Development Setup
 
+- Node.js **≥20** (LTS recommended); OpenClaw gateway **≥2026.3.24** when developing the plugin (see `openclaw.compat` in [package.json](package.json)).
+
 ```bash
 npm install
 cp .env.example .env
@@ -20,6 +22,11 @@ npm run dev -- --help
 
 Formatting and linting use [Biome](https://biomejs.dev/) (`biome.json` at repo root). CI runs `npm run lint` before build.
 
+## Security and dependencies
+
+- Run `npm audit` periodically; review `npm audit fix` output before applying (semver and breaking changes).
+- [Dependabot](https://docs.github.com/en/code-security/dependabot) opens weekly npm update PRs (see [.github/dependabot.yml](.github/dependabot.yml)).
+
 ## Pull Request Checklist
 
 Before opening a PR:
@@ -30,6 +37,10 @@ Before opening a PR:
 - Update docs when CLI/plugin behavior changes
 - If you change install steps or installer env vars, update both [README.md](README.md) and [README.zh-CN.md](README.zh-CN.md) in the same PR
 - Include a clear summary: what changed, why, and how it was verified
+
+## SQLite connections
+
+Production code opens on-disk databases via [`src/sqlite/openSqlite.ts`](src/sqlite/openSqlite.ts), which sets `busy_timeout` and WAL (`journal_mode`) to reduce lock contention under concurrent gateway or cron use. Tests may still use `better-sqlite3` in-memory databases directly.
 
 ## Code Style
 

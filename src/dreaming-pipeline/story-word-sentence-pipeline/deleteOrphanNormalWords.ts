@@ -1,4 +1,4 @@
-import Database from "better-sqlite3";
+import { openSqlite } from "../../sqlite/openSqlite.js";
 
 export type DeleteOrphanNormalWordsResult = {
   count: number;
@@ -12,7 +12,7 @@ export type DeleteOrphanNormalWordsResult = {
 export function deleteOrphanNormalWords(
   dbPath: string,
 ): DeleteOrphanNormalWordsResult {
-  const db = new Database(dbPath);
+  const db = openSqlite(dbPath);
   try {
     db.pragma("foreign_keys = ON");
     const runTx = db.transaction((): DeleteOrphanNormalWordsResult => {

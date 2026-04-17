@@ -1,6 +1,6 @@
-import Database from "better-sqlite3";
 import { articleWordPipelineV2 } from "../article-word-pipeline/v2/articleWordPipeline.js";
 import { importAwpV2Tuple } from "../sqlite/awpV2Import.js";
+import { openSqlite } from "../sqlite/openSqlite.js";
 
 export type SaveTextToMemoryDbOptions = {
   dbPath: string;
@@ -21,7 +21,7 @@ export async function saveTextToMemoryDb(
   }
 
   const [combined, normalized] = await articleWordPipelineV2(stripped);
-  const db = new Database(options.dbPath);
+  const db = openSqlite(options.dbPath);
   try {
     const tx = db.transaction(() => {
       importAwpV2Tuple(db, combined, normalized, { today: options.today });
