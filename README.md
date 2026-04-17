@@ -39,7 +39,9 @@ npm run dev -- --help
 Install plugin:
 
 ```bash
-openclaw plugins install /path/to/memok-ai
+openclaw plugins install github:galaxy8691/memok-ai
+# or install from local path
+# openclaw plugins install /path/to/memok-ai
 ```
 
 Run interactive setup:
