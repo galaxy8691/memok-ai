@@ -274,7 +274,7 @@
       },
       "dreamingPipelineDailyAt": {
         "type": "string",
-        "pattern": "^(?:[01]\\\\d|2[0-3]):[0-5]\\\\d$",
+        "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d$",
         "description": "每日触发时间（HH:mm）。仅在 dreamingPipelineCron 留空时生效；例如 03:00"
       },
       "dreamingPipelineCron": {

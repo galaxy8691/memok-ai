@@ -1,5 +1,5 @@
 import { Type } from "@sinclair/typebox";
-import { appendFileSync, mkdirSync, writeFileSync } from "node:fs";
+import { appendFileSync, copyFileSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { definePluginEntry } from "openclaw/plugin-sdk/plugin-entry";
@@ -20,6 +20,7 @@ import { loadProjectEnv } from "./llm/openaiCompat.js";
 import type { RunDreamingPipelineFromDbOpts } from "./dreaming-pipeline/runDreamingPipelineFromDb.js";
 import { applyMemokPluginLlmEnv, type MemokLlmEnvConfig } from "./plugin/applyMemokPluginLlmEnv.js";
 import { registerDreamingPipelineCron } from "./plugin/registerDreamingPipelineCron.js";
+import { mergeMemokSetupToConfig, promptMemokSetupAnswers } from "./plugin/setupWizard.js";
 
 function getDefaultDbPath(): string {
   return (
@@ -38,6 +39,15 @@ function expandUserPath(p: string): string {
 
 function getDefaultMemoryFeedbackLogPath(): string {
   return join(homedir(), ".openclaw/extensions/memok-ai/memory-feedback.jsonl");
+}
+
+function resolveMemokDbPathFromConfig(root: Record<string, unknown>): string {
+  const plugins = (root.plugins as Record<string, unknown> | undefined) ?? {};
+  const entries = (plugins.entries as Record<string, unknown> | undefined) ?? {};
+  const entry = (entries["memok-ai"] as Record<string, unknown> | undefined) ?? {};
+  const cfg = (entry.config as Record<string, unknown> | undefined) ?? {};
+  const raw = typeof cfg.dbPath === "string" ? cfg.dbPath : "";
+  return expandUserPath(raw || getDefaultDbPath());
 }
 
 /** `plugins.entries.memok-ai.config` 与 manifest 字段对应 */
@@ -329,6 +339,69 @@ export default definePluginEntry({
   description: "自动保存 OpenClaw 对话到 memok-ai 记忆系统",
 
   register(api) {
+    api.registerCli(({ program }) => {
+      const memok = program.command("memok").description("memok-ai plugin commands");
+      memok
+        .command("setup")
+        .description("Interactive setup for llm provider/model and dreaming schedule")
+        .action(async () => {
+          const runtimeConfig = api.runtime?.config;
+          if (!runtimeConfig?.loadConfig || !runtimeConfig?.writeConfigFile) {
+            throw new Error("memok setup unavailable: runtime config API not ready");
+          }
+          const answers = await promptMemokSetupAnswers();
+          const cur = runtimeConfig.loadConfig() as unknown as Record<string, unknown>;
+          const next = mergeMemokSetupToConfig(cur, answers);
+          await runtimeConfig.writeConfigFile(next as any);
+          const dbPath = resolveMemokDbPathFromConfig(next);
+          const cleanPath = `${dbPath}.clean`;
+          let copiedFromClean = false;
+          if (existsSync(cleanPath)) {
+            copyFileSync(cleanPath, dbPath);
+            copiedFromClean = true;
+          }
+          console.log(
+            [
+              "[memok-ai] setup 完成：已写入 plugins.entries.memok-ai.config",
+              `- llmProvider=${answers.llmProvider}`,
+              `- model=${answers.llmModel?.trim() ? answers.llmModel.trim() : (answers.llmModelPreset ?? "(未设置)")}`,
+              `- memorySlotExclusive=${answers.memorySlotExclusive ? "yes(memok-ai)" : "no"}`,
+              `- dreamingSchedule=${answers.dreamingPipelineScheduleEnabled ? `on @ ${answers.dreamingPipelineDailyAt ?? "03:00"}` : "off"}`,
+              copiedFromClean
+                ? `- 已从 ${cleanPath} 复制初始库到 ${dbPath}`
+                : `- 未找到 ${cleanPath}，跳过初始库复制`,
+              "",
+              "请重启 gateway 使新配置生效。",
+            ].join("\n"),
+          );
+        });
+    }, {
+      descriptors: [
+        {
+          name: "memok",
+          description: "memok-ai setup and maintenance commands",
+          hasSubcommands: true,
+        },
+      ],
+    });
+
+    api.registerCommand({
+      name: "memok",
+      description: "Show memok setup help",
+      acceptsArgs: true,
+      handler: async (ctx) => {
+        const first = (ctx.args ?? "").trim().split(/\s+/)[0] ?? "";
+        if (first === "setup") {
+          return {
+            text: "请在网关终端执行 `openclaw memok setup` 进入交互式向导（供应商/API Key/模型/发梦时间）。",
+          };
+        }
+        return {
+          text: "用法：`/memok setup`（提示终端执行 `openclaw memok setup`）",
+        };
+      },
+    });
+
     const entry = api.config.plugins?.entries?.["memok-ai"] as MemokPluginEntry | undefined;
     const pluginCfg = {
       ...(entry?.config && typeof entry.config === "object" ? entry.config : {}),

@@ -491,8 +491,12 @@ npm run import:outputs -- --db ./memok.sqlite --as-of 2026-04-14
   - **`dreamingPipelineDailyAt`**：给安装/配置阶段更友好的每日时间（**`HH:mm`**，如 `03:00`）。仅在 `dreamingPipelineCron` 留空时生效。  
   - **`dreamingPipelineCron`**：5 段 cron，**优先级高于** `dreamingPipelineDailyAt`；默认 `0 3 * * *`（每天凌晨 **3:00**，在 `dreamingPipelineTimezone` 或本机时区下解释）。  
   - **`dreamingPipelineTimezone`**：可选，IANA 时区（如 **`Asia/Shanghai`**）。  
+  - **`dream_logs`（SQLite 表）**：dreaming 定时任务每次执行后会把结果写入同一 `dbPath` 下的 `dream_logs` 表，包含 `dream_date`（发梦日期）、`ts`、`status` 与完整 JSON 记录（`log_json`）。  
   - **`dreamingPipelineMaxWords` / `dreamingPipelineFraction` / `dreamingPipelineMinRuns` / `dreamingPipelineMaxRuns`**：与 CLI **`dreaming-pipeline`** 同义，用于定时任务内的 story 段。  
 - **环境变量**：**`MEMOK_MEMORY_DB`** 可覆盖默认 **`dbPath`**（便于开发与多环境隔离）。
+- **交互式 setup（推荐）**：安装插件后可在网关终端运行  
+  `openclaw memok setup`  
+  进入分步向导（供应商、API Key、模型、是否由 memok-ai 独占 memory 槽位、是否开启 dreaming、每日时间与时区），写入 `plugins.entries.memok-ai.config`；完成后重启 gateway 生效。向导里 memory 槽位默认**不独占**。
 
 ### 记忆读取与反馈（插件内）
 
