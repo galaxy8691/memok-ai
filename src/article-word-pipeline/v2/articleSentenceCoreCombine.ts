@@ -1,12 +1,14 @@
 import {
-  ArticleCoreWordsNomalizedData,
-  ArticleSentenceCoreCombinedData,
+  type ArticleCoreWordsNomalizedData,
   ArticleCoreWordsNomalizedDataSchema,
+  type ArticleMemorySentencesData,
+  type ArticleSentenceCoreCombinedData,
   ArticleSentenceCoreCombinedDataSchema,
-  ArticleMemorySentencesData,
 } from "./schemas.js";
 
-function newTextListOrderedDedupe(data: ArticleCoreWordsNomalizedData): string[] {
+function newTextListOrderedDedupe(
+  data: ArticleCoreWordsNomalizedData,
+): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
   for (const row of data.nomalized) {

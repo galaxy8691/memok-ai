@@ -18,7 +18,13 @@ export function applySentenceUsageFeedback(
   sentenceIds: number[],
   opts?: ApplySentenceUsageFeedbackOptions,
 ): { updatedCount: number } {
-  const ids = [...new Set(sentenceIds.filter((n) => typeof n === "number" && Number.isInteger(n) && n > 0))];
+  const ids = [
+    ...new Set(
+      sentenceIds.filter(
+        (n) => typeof n === "number" && Number.isInteger(n) && n > 0,
+      ),
+    ),
+  ];
   if (ids.length === 0) {
     return { updatedCount: 0 };
   }

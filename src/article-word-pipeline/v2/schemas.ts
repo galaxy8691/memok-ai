@@ -44,13 +44,27 @@ export const ArticleSentenceCoreCombinedDataSchema = z
   })
   .strict();
 
-export const AwpV2TupleSchema = z
-  .tuple([ArticleSentenceCoreCombinedDataSchema, ArticleCoreWordsNomalizedDataSchema]);
+export const AwpV2TupleSchema = z.tuple([
+  ArticleSentenceCoreCombinedDataSchema,
+  ArticleCoreWordsNomalizedDataSchema,
+]);
 
 export type ArticleCoreWordsData = z.infer<typeof ArticleCoreWordsDataSchema>;
-export type ArticleCoreWordNomalizePair = z.infer<typeof ArticleCoreWordNomalizePairSchema>;
-export type ArticleCoreWordsNomalizedData = z.infer<typeof ArticleCoreWordsNomalizedDataSchema>;
-export type ArticleMemorySentenceItem = z.infer<typeof ArticleMemorySentenceItemSchema>;
-export type ArticleMemorySentencesData = z.infer<typeof ArticleMemorySentencesDataSchema>;
-export type ArticleSentenceCoreItem = z.infer<typeof ArticleSentenceCoreItemSchema>;
-export type ArticleSentenceCoreCombinedData = z.infer<typeof ArticleSentenceCoreCombinedDataSchema>;
+export type ArticleCoreWordNomalizePair = z.infer<
+  typeof ArticleCoreWordNomalizePairSchema
+>;
+export type ArticleCoreWordsNomalizedData = z.infer<
+  typeof ArticleCoreWordsNomalizedDataSchema
+>;
+export type ArticleMemorySentenceItem = z.infer<
+  typeof ArticleMemorySentenceItemSchema
+>;
+export type ArticleMemorySentencesData = z.infer<
+  typeof ArticleMemorySentencesDataSchema
+>;
+export type ArticleSentenceCoreItem = z.infer<
+  typeof ArticleSentenceCoreItemSchema
+>;
+export type ArticleSentenceCoreCombinedData = z.infer<
+  typeof ArticleSentenceCoreCombinedDataSchema
+>;

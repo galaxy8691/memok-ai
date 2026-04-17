@@ -29,7 +29,9 @@ describe("validateSentenceRelevanceOutput", () => {
     const output = SentenceRelevanceOutputSchema.parse({
       sentences: [{ id: 1, score: 90 }],
     });
-    expect(() => validateSentenceRelevanceOutput(input, output)).toThrow(/条数不一致/);
+    expect(() => validateSentenceRelevanceOutput(input, output)).toThrow(
+      /条数不一致/,
+    );
   });
 
   it("throws when output has unknown id", () => {

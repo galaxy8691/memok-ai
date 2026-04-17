@@ -38,11 +38,14 @@ describe("runPredreamDecayFromDb", () => {
            ('b', 3, 1, '2026-01-01', 1, 0),
            ('c', 1, 10, '2026-01-01', 0, 0)`,
       ).run();
-      const idB =
-        (db.prepare("SELECT id FROM sentences WHERE sentence = 'b'").get() as { id: number }).id;
-      db.prepare("INSERT INTO sentence_to_normal_link (normal_id, sentence_id, weight) VALUES (99, ?, 1)").run(
-        idB,
-      );
+      const idB = (
+        db.prepare("SELECT id FROM sentences WHERE sentence = 'b'").get() as {
+          id: number;
+        }
+      ).id;
+      db.prepare(
+        "INSERT INTO sentence_to_normal_link (normal_id, sentence_id, weight) VALUES (99, ?, 1)",
+      ).run(idB);
       db.close();
 
       const out = runPredreamDecayFromDb(dbPath);
@@ -52,12 +55,30 @@ describe("runPredreamDecayFromDb", () => {
 
       const ro = new Database(dbPath, { readonly: true });
       const rows = ro
-        .prepare("SELECT id, sentence, weight, duration, is_short_term FROM sentences ORDER BY id")
-        .all() as { id: number; sentence: string; weight: number; duration: number; is_short_term: number }[];
+        .prepare(
+          "SELECT id, sentence, weight, duration, is_short_term FROM sentences ORDER BY id",
+        )
+        .all() as {
+        id: number;
+        sentence: string;
+        weight: number;
+        duration: number;
+        is_short_term: number;
+      }[];
       expect(rows).toHaveLength(2);
-      expect(rows.find((r) => r.sentence === "a")).toMatchObject({ duration: 0, is_short_term: 0, weight: 7 });
-      expect(rows.find((r) => r.sentence === "c")).toMatchObject({ duration: 9, is_short_term: 0, weight: 1 });
-      const links = ro.prepare("SELECT COUNT(*) as c FROM sentence_to_normal_link").get() as { c: number };
+      expect(rows.find((r) => r.sentence === "a")).toMatchObject({
+        duration: 0,
+        is_short_term: 0,
+        weight: 7,
+      });
+      expect(rows.find((r) => r.sentence === "c")).toMatchObject({
+        duration: 9,
+        is_short_term: 0,
+        weight: 1,
+      });
+      const links = ro
+        .prepare("SELECT COUNT(*) as c FROM sentence_to_normal_link")
+        .get() as { c: number };
       expect(links.c).toBe(0);
       ro.close();
     } finally {
@@ -83,7 +104,11 @@ describe("runPredreamDecayFromDb", () => {
       expect(out.deletedSentences).toBe(0);
 
       const ro = new Database(dbPath, { readonly: true });
-      const row = ro.prepare("SELECT duration, is_short_term FROM sentences WHERE sentence = 'x'").get() as {
+      const row = ro
+        .prepare(
+          "SELECT duration, is_short_term FROM sentences WHERE sentence = 'x'",
+        )
+        .get() as {
         duration: number;
         is_short_term: number;
       };

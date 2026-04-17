@@ -1,7 +1,16 @@
-import Database from "better-sqlite3";
-import { mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import {
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { basename, extname, join, resolve } from "node:path";
-import { importAwpV2Tuple, parseAwpV2TupleJson } from "../sqlite/awpV2Import.js";
+import Database from "better-sqlite3";
+import {
+  importAwpV2Tuple,
+  parseAwpV2TupleJson,
+} from "../sqlite/awpV2Import.js";
 
 type CliOptions = {
   inputDir: string;
@@ -63,7 +72,10 @@ function main(): void {
   mkdirSync(logDir, { recursive: true });
 
   const all = collectOutputJsonFiles(inputDir);
-  const selected = all.filter((_, idx) => idx >= opts.fromIndex && (opts.toIndex === null || idx <= opts.toIndex));
+  const selected = all.filter(
+    (_, idx) =>
+      idx >= opts.fromIndex && (opts.toIndex === null || idx <= opts.toIndex),
+  );
   if (selected.length === 0) {
     console.log("没有找到可导入的 -output.json 文件。");
     return;
@@ -90,7 +102,9 @@ function main(): void {
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);
         errors.push(`${fileName}\t${msg}`);
-        console.error(`[${i + 1}/${selected.length}] 导入失败: ${fileName}: ${msg}`);
+        console.error(
+          `[${i + 1}/${selected.length}] 导入失败: ${fileName}: ${msg}`,
+        );
       }
     }
   } finally {
@@ -100,7 +114,9 @@ function main(): void {
   if (errors.length > 0) {
     const errPath = join(logDir, "import-errors.log");
     writeFileSync(errPath, `${errors.join("\n")}\n`, "utf-8");
-    console.log(`导入完成：成功 ${ok}，失败 ${errors.length}。错误日志: ${errPath}`);
+    console.log(
+      `导入完成：成功 ${ok}，失败 ${errors.length}。错误日志: ${errPath}`,
+    );
   } else {
     console.log(`导入完成：成功 ${ok}，失败 0。`);
   }

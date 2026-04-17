@@ -1,7 +1,11 @@
 const MAX_GIST_CHARS = 200;
 const MAX_GIST_WORDS_EN = 200;
 
-function latinToCjkRatio(s: string): { letters: number; cjk: number; ratio: number } {
+function latinToCjkRatio(s: string): {
+  letters: number;
+  cjk: number;
+  ratio: number;
+} {
   const letters = (s.match(/[A-Za-z]/g) ?? []).length;
   const cjk = (s.match(/[\u4e00-\u9fff]/g) ?? []).length;
   const denom = letters + cjk;

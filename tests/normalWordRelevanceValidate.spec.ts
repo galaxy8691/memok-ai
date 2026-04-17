@@ -29,7 +29,9 @@ describe("validateNormalWordRelevanceOutput", () => {
     const output = NormalWordRelevanceOutputSchema.parse({
       normalWords: [{ id: 1, score: 90 }],
     });
-    expect(() => validateNormalWordRelevanceOutput(input, output)).toThrow(/条数不一致/);
+    expect(() => validateNormalWordRelevanceOutput(input, output)).toThrow(
+      /条数不一致/,
+    );
   });
 
   it("throws when output has unknown id", () => {
@@ -39,7 +41,9 @@ describe("validateNormalWordRelevanceOutput", () => {
         { id: 3, score: 20 },
       ],
     });
-    expect(() => validateNormalWordRelevanceOutput(input, output)).toThrow(/id=/);
+    expect(() => validateNormalWordRelevanceOutput(input, output)).toThrow(
+      /id=/,
+    );
   });
 
   it("strips echoed word field from model output items", () => {

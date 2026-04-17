@@ -1,29 +1,29 @@
 #!/usr/bin/env node
-import { Command } from "commander";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { Command } from "commander";
 import { z } from "zod";
 import { analyzeArticleCoreWords } from "./article-word-pipeline/v2/articleCoreWords.js";
 import { normalizeArticleCoreWordsSynonyms } from "./article-word-pipeline/v2/articleCoreWordsNormalize.js";
-import { analyzeArticleMemorySentences } from "./article-word-pipeline/v2/articleSentences.js";
 import {
   combineArticleSentenceCoreV2,
   dumpArticleSentenceCoreCombineTupleV2Json,
 } from "./article-word-pipeline/v2/articleSentenceCoreCombine.js";
+import { analyzeArticleMemorySentences } from "./article-word-pipeline/v2/articleSentences.js";
+import { articleWordPipelineV2 } from "./article-word-pipeline/v2/articleWordPipeline.js";
 import {
   ArticleCoreWordsDataSchema,
   ArticleCoreWordsNomalizedDataSchema,
   ArticleMemorySentencesDataSchema,
 } from "./article-word-pipeline/v2/schemas.js";
-import { articleWordPipelineV2 } from "./article-word-pipeline/v2/articleWordPipeline.js";
-import { importAwpV2TupleFromPaths } from "./sqlite/awpV2Import.js";
-import { runDreamingPipelineFromDb } from "./dreaming-pipeline/runDreamingPipelineFromDb.js";
 import { runPredreamDecayFromDb } from "./dreaming-pipeline/predream-pipeline/index.js";
+import { runDreamingPipelineFromDb } from "./dreaming-pipeline/runDreamingPipelineFromDb.js";
 import {
   runStoryWordSentenceBucketsFromDb,
   runStoryWordSentencePipelineFromDb,
 } from "./dreaming-pipeline/story-word-sentence-pipeline/index.js";
 import { extractMemorySentencesByWordSample } from "./read-memory-pipeline/extractMemorySentencesByWordSample.js";
+import { importAwpV2TupleFromPaths } from "./sqlite/awpV2Import.js";
 import { hardenDbFile } from "./sqlite/hardenDb.js";
 
 function resolvePath(p: string): string {
@@ -69,11 +69,14 @@ program
   .requiredOption("--from-json <path>", "core_words json 文件")
   .action(async (opts: { fromJson: string }) => {
     const raw = readUtf8(opts.fromJson);
-    let data;
+    let data: z.infer<typeof ArticleCoreWordsDataSchema>;
     try {
       data = ArticleCoreWordsDataSchema.parse(JSON.parse(raw));
     } catch (e) {
-      exitValidation(e, "无法解析 ArticleCoreWordsData（须仅含 core_words 字符串数组）");
+      exitValidation(
+        e,
+        "无法解析 ArticleCoreWordsData（须仅含 core_words 字符串数组）",
+      );
     }
     const out = await normalizeArticleCoreWordsSynonyms(data);
     printJson(out);
@@ -91,22 +94,40 @@ program
 program
   .command("article-sentence-core-combine")
   .requiredOption("--from-sentences-json <path>", "article-sentences JSON")
-  .requiredOption("--from-normalized-json <path>", "article-core-words-normalize JSON")
+  .requiredOption(
+    "--from-normalized-json <path>",
+    "article-core-words-normalize JSON",
+  )
   .action((opts: { fromSentencesJson: string; fromNormalizedJson: string }) => {
-    let sentences;
-    let normalized;
+    let sentences: z.infer<typeof ArticleMemorySentencesDataSchema>;
+    let normalized: z.infer<typeof ArticleCoreWordsNomalizedDataSchema>;
     try {
-      sentences = ArticleMemorySentencesDataSchema.parse(JSON.parse(readUtf8(opts.fromSentencesJson)));
+      sentences = ArticleMemorySentencesDataSchema.parse(
+        JSON.parse(readUtf8(opts.fromSentencesJson)),
+      );
     } catch (e) {
-      exitValidation(e, "无法解析 ArticleMemorySentencesData（须仅含 sentences: [{sentence}]）");
+      exitValidation(
+        e,
+        "无法解析 ArticleMemorySentencesData（须仅含 sentences: [{sentence}]）",
+      );
     }
     try {
-      normalized = ArticleCoreWordsNomalizedDataSchema.parse(JSON.parse(readUtf8(opts.fromNormalizedJson)));
+      normalized = ArticleCoreWordsNomalizedDataSchema.parse(
+        JSON.parse(readUtf8(opts.fromNormalizedJson)),
+      );
     } catch (e) {
-      exitValidation(e, "无法解析 ArticleCoreWordsNomalizedData（须仅含 nomalized 数组）");
+      exitValidation(
+        e,
+        "无法解析 ArticleCoreWordsNomalizedData（须仅含 nomalized 数组）",
+      );
     }
-    const [combined, normOut] = combineArticleSentenceCoreV2(sentences, normalized);
-    process.stdout.write(`${dumpArticleSentenceCoreCombineTupleV2Json(combined, normOut)}\n`);
+    const [combined, normOut] = combineArticleSentenceCoreV2(
+      sentences,
+      normalized,
+    );
+    process.stdout.write(
+      `${dumpArticleSentenceCoreCombineTupleV2Json(combined, normOut)}\n`,
+    );
   });
 
 program
@@ -115,7 +136,9 @@ program
   .action(async (articlePath: string) => {
     const text = readUtf8(articlePath);
     const [combined, normalized] = await articleWordPipelineV2(text);
-    process.stdout.write(`${dumpArticleSentenceCoreCombineTupleV2Json(combined, normalized)}\n`);
+    process.stdout.write(
+      `${dumpArticleSentenceCoreCombineTupleV2Json(combined, normalized)}\n`,
+    );
   });
 
 program
@@ -125,29 +148,34 @@ program
   )
   .requiredOption("--db <path>", "sqlite 数据库路径")
   .option("--fraction <n>", "对 words 表的抽样比例（默认 0.2）")
-  .option("--long-term-fraction <n>", "非短期句池抽样比例（默认与 --fraction 相同）")
-  .action((opts: { db: string; fraction?: string; longTermFraction?: string }) => {
-    try {
-      const fraction =
-        opts.fraction !== undefined && opts.fraction !== ""
-          ? Number.parseFloat(opts.fraction)
-          : 0.2;
-      const longTermFraction =
-        opts.longTermFraction !== undefined && opts.longTermFraction !== ""
-          ? Number.parseFloat(opts.longTermFraction)
-          : undefined;
-      const out = extractMemorySentencesByWordSample(resolvePath(opts.db), {
-        fraction: Number.isFinite(fraction) ? fraction : 0.2,
-        longTermFraction:
-          longTermFraction !== undefined && Number.isFinite(longTermFraction)
-            ? longTermFraction
-            : undefined,
-      });
-      printJson(out);
-    } catch (e) {
-      exitValidation(e, "extract-memory-sentences 失败");
-    }
-  });
+  .option(
+    "--long-term-fraction <n>",
+    "非短期句池抽样比例（默认与 --fraction 相同）",
+  )
+  .action(
+    (opts: { db: string; fraction?: string; longTermFraction?: string }) => {
+      try {
+        const fraction =
+          opts.fraction !== undefined && opts.fraction !== ""
+            ? Number.parseFloat(opts.fraction)
+            : 0.2;
+        const longTermFraction =
+          opts.longTermFraction !== undefined && opts.longTermFraction !== ""
+            ? Number.parseFloat(opts.longTermFraction)
+            : undefined;
+        const out = extractMemorySentencesByWordSample(resolvePath(opts.db), {
+          fraction: Number.isFinite(fraction) ? fraction : 0.2,
+          longTermFraction:
+            longTermFraction !== undefined && Number.isFinite(longTermFraction)
+              ? longTermFraction
+              : undefined,
+        });
+        printJson(out);
+      } catch (e) {
+        exitValidation(e, "extract-memory-sentences 失败");
+      }
+    },
+  );
 
 async function runStoryWordSentenceBucketsCli(opts: {
   db: string;
@@ -158,12 +186,14 @@ async function runStoryWordSentenceBucketsCli(opts: {
     opts.maxWords !== undefined && opts.maxWords !== ""
       ? Number.parseInt(opts.maxWords, 10)
       : 10;
-  const maxWords = Number.isFinite(rawMaxWords) && rawMaxWords > 0 ? rawMaxWords : 10;
+  const maxWords =
+    Number.isFinite(rawMaxWords) && rawMaxWords > 0 ? rawMaxWords : 10;
   const rawFraction =
     opts.fraction !== undefined && opts.fraction !== ""
       ? Number.parseFloat(opts.fraction)
       : 0.2;
-  const fraction = Number.isFinite(rawFraction) && rawFraction > 0 ? rawFraction : 0.2;
+  const fraction =
+    Number.isFinite(rawFraction) && rawFraction > 0 ? rawFraction : 0.2;
   const out = await runStoryWordSentenceBucketsFromDb(resolvePath(opts.db), {
     maxWords,
     fraction,
@@ -182,24 +212,30 @@ async function runStoryWordSentencePipelineCli(opts: {
     opts.maxWords !== undefined && opts.maxWords !== ""
       ? Number.parseInt(opts.maxWords, 10)
       : 10;
-  const maxWords = Number.isFinite(rawMaxWords) && rawMaxWords > 0 ? rawMaxWords : 10;
+  const maxWords =
+    Number.isFinite(rawMaxWords) && rawMaxWords > 0 ? rawMaxWords : 10;
   const rawFraction =
     opts.fraction !== undefined && opts.fraction !== ""
       ? Number.parseFloat(opts.fraction)
       : 0.2;
-  const fraction = Number.isFinite(rawFraction) && rawFraction > 0 ? rawFraction : 0.2;
+  const fraction =
+    Number.isFinite(rawFraction) && rawFraction > 0 ? rawFraction : 0.2;
   const rawMinRuns =
     opts.minRuns !== undefined && opts.minRuns !== ""
       ? Number.parseInt(opts.minRuns, 10)
       : undefined;
   const minRuns =
-    rawMinRuns !== undefined && Number.isFinite(rawMinRuns) && rawMinRuns > 0 ? rawMinRuns : undefined;
+    rawMinRuns !== undefined && Number.isFinite(rawMinRuns) && rawMinRuns > 0
+      ? rawMinRuns
+      : undefined;
   const rawMaxRuns =
     opts.maxRuns !== undefined && opts.maxRuns !== ""
       ? Number.parseInt(opts.maxRuns, 10)
       : undefined;
   const maxRuns =
-    rawMaxRuns !== undefined && Number.isFinite(rawMaxRuns) && rawMaxRuns > 0 ? rawMaxRuns : undefined;
+    rawMaxRuns !== undefined && Number.isFinite(rawMaxRuns) && rawMaxRuns > 0
+      ? rawMaxRuns
+      : undefined;
   const out = await runStoryWordSentencePipelineFromDb(resolvePath(opts.db), {
     maxWords,
     fraction,
@@ -223,24 +259,30 @@ async function runDreamingPipelineCli(opts: {
     opts.maxWords !== undefined && opts.maxWords !== ""
       ? Number.parseInt(opts.maxWords, 10)
       : 10;
-  const maxWords = Number.isFinite(rawMaxWords) && rawMaxWords > 0 ? rawMaxWords : 10;
+  const maxWords =
+    Number.isFinite(rawMaxWords) && rawMaxWords > 0 ? rawMaxWords : 10;
   const rawFraction =
     opts.fraction !== undefined && opts.fraction !== ""
       ? Number.parseFloat(opts.fraction)
       : 0.2;
-  const fraction = Number.isFinite(rawFraction) && rawFraction > 0 ? rawFraction : 0.2;
+  const fraction =
+    Number.isFinite(rawFraction) && rawFraction > 0 ? rawFraction : 0.2;
   const rawMinRuns =
     opts.minRuns !== undefined && opts.minRuns !== ""
       ? Number.parseInt(opts.minRuns, 10)
       : undefined;
   const minRuns =
-    rawMinRuns !== undefined && Number.isFinite(rawMinRuns) && rawMinRuns > 0 ? rawMinRuns : undefined;
+    rawMinRuns !== undefined && Number.isFinite(rawMinRuns) && rawMinRuns > 0
+      ? rawMinRuns
+      : undefined;
   const rawMaxRuns =
     opts.maxRuns !== undefined && opts.maxRuns !== ""
       ? Number.parseInt(opts.maxRuns, 10)
       : undefined;
   const maxRuns =
-    rawMaxRuns !== undefined && Number.isFinite(rawMaxRuns) && rawMaxRuns > 0 ? rawMaxRuns : undefined;
+    rawMaxRuns !== undefined && Number.isFinite(rawMaxRuns) && rawMaxRuns > 0
+      ? rawMaxRuns
+      : undefined;
   const out = await runDreamingPipelineFromDb(resolvePath(opts.db), {
     maxWords,
     fraction,
@@ -260,16 +302,33 @@ program
   )
   .requiredOption("--db <path>", "sqlite 数据库路径")
   .option("--max-words <n>", "story 阶段从 words 表最多抽几个词（默认 10）")
-  .option("--fraction <n>", "句子与 normal_words 相关性共用抽样比例（默认 0.2）")
-  .option("--min-runs <n>", "story-word-sentence-pipeline 随机轮数下限（含），默认 3")
-  .option("--max-runs <n>", "story-word-sentence-pipeline 随机轮数上限（含），默认 5")
-  .action(async (opts: { db: string; maxWords?: string; fraction?: string; minRuns?: string; maxRuns?: string }) => {
-    try {
-      await runDreamingPipelineCli(opts);
-    } catch (e) {
-      exitValidation(e, "dreaming-pipeline 失败");
-    }
-  });
+  .option(
+    "--fraction <n>",
+    "句子与 normal_words 相关性共用抽样比例（默认 0.2）",
+  )
+  .option(
+    "--min-runs <n>",
+    "story-word-sentence-pipeline 随机轮数下限（含），默认 3",
+  )
+  .option(
+    "--max-runs <n>",
+    "story-word-sentence-pipeline 随机轮数上限（含），默认 5",
+  )
+  .action(
+    async (opts: {
+      db: string;
+      maxWords?: string;
+      fraction?: string;
+      minRuns?: string;
+      maxRuns?: string;
+    }) => {
+      try {
+        await runDreamingPipelineCli(opts);
+      } catch (e) {
+        exitValidation(e, "dreaming-pipeline 失败");
+      }
+    },
+  );
 
 program
   .command("predream-decay")
@@ -293,14 +352,19 @@ program
   )
   .requiredOption("--db <path>", "sqlite 数据库路径")
   .option("--max-words <n>", "生成故事时从 words 表最多抽几个词（默认 10）")
-  .option("--fraction <n>", "句子与 normal_words 相关性共用抽样比例（默认 0.2）")
-  .action(async (opts: { db: string; maxWords?: string; fraction?: string }) => {
-    try {
-      await runStoryWordSentenceBucketsCli(opts);
-    } catch (e) {
-      exitValidation(e, "story-word-sentence-buckets 失败");
-    }
-  });
+  .option(
+    "--fraction <n>",
+    "句子与 normal_words 相关性共用抽样比例（默认 0.2）",
+  )
+  .action(
+    async (opts: { db: string; maxWords?: string; fraction?: string }) => {
+      try {
+        await runStoryWordSentenceBucketsCli(opts);
+      } catch (e) {
+        exitValidation(e, "story-word-sentence-buckets 失败");
+      }
+    },
+  );
 
 program
   .command("story-word-sentence-pipeline")
@@ -309,11 +373,20 @@ program
   )
   .requiredOption("--db <path>", "sqlite 数据库路径")
   .option("--max-words <n>", "每轮生成故事时从 words 表最多抽几个词（默认 10）")
-  .option("--fraction <n>", "每轮句子与 normal_words 相关性共用抽样比例（默认 0.2）")
+  .option(
+    "--fraction <n>",
+    "每轮句子与 normal_words 相关性共用抽样比例（默认 0.2）",
+  )
   .option("--min-runs <n>", "随机轮数下限（含），默认 3")
   .option("--max-runs <n>", "随机轮数上限（含），默认 5")
   .action(
-    async (opts: { db: string; maxWords?: string; fraction?: string; minRuns?: string; maxRuns?: string }) => {
+    async (opts: {
+      db: string;
+      maxWords?: string;
+      fraction?: string;
+      minRuns?: string;
+      maxRuns?: string;
+    }) => {
       try {
         await runStoryWordSentencePipelineCli(opts);
       } catch (e) {
@@ -342,9 +415,13 @@ program
   .option("--as-of <YYYY-MM-DD>", "日期")
   .action((opts: { fromJson: string; db: string; asOf?: string }) => {
     try {
-      importAwpV2TupleFromPaths(resolvePath(opts.fromJson), resolvePath(opts.db), {
-        today: opts.asOf,
-      });
+      importAwpV2TupleFromPaths(
+        resolvePath(opts.fromJson),
+        resolvePath(opts.db),
+        {
+          today: opts.asOf,
+        },
+      );
     } catch (e) {
       exitValidation(e, "导入 awp v2 tuple 失败");
     }

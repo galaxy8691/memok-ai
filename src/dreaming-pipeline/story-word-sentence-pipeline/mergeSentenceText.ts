@@ -33,7 +33,10 @@ function resolveModel(explicit?: string): string {
   return DEFAULT_MODEL;
 }
 
-function effectiveOutputBudget(forDeepseek: boolean, explicit?: number): number {
+function effectiveOutputBudget(
+  forDeepseek: boolean,
+  explicit?: number,
+): number {
   const cap = explicit ?? DEFAULT_MAX_OUTPUT;
   if (forDeepseek) {
     return Math.max(1, Math.min(cap, DEEPSEEK_CHAT_MAX_TOKENS_CAP));

@@ -1,8 +1,8 @@
-import { Cron } from "croner";
 import Database from "better-sqlite3";
+import { Cron } from "croner";
 import {
-  runDreamingPipelineFromDb,
   type RunDreamingPipelineFromDbOpts,
+  runDreamingPipelineFromDb,
 } from "../dreaming-pipeline/runDreamingPipelineFromDb.js";
 
 export type PluginLoggerLike = {
@@ -48,7 +48,8 @@ export function registerDreamingPipelineCron(params: {
           )`,
         );
         const dreamDate = new Date().toISOString().slice(0, 10);
-        const ts = typeof row.ts === "string" ? row.ts : new Date().toISOString();
+        const ts =
+          typeof row.ts === "string" ? row.ts : new Date().toISOString();
         const status = String(row.status ?? "unknown");
         db.prepare(
           `INSERT INTO dream_logs (dream_date, ts, status, log_json)
@@ -74,7 +75,9 @@ export function registerDreamingPipelineCron(params: {
       async () => {
         const startedAt = new Date().toISOString();
         try {
-          logger.info?.(`[memok-ai] dreaming-pipeline（定时）开始: db=${dbPath}`);
+          logger.info?.(
+            `[memok-ai] dreaming-pipeline（定时）开始: db=${dbPath}`,
+          );
           const out = await runDreamingPipelineFromDb(dbPath, pipelineOpts);
           const p = out.predream;
           const s = out.storyWordSentencePipeline;
@@ -116,6 +119,8 @@ export function registerDreamingPipelineCron(params: {
     logger.info?.("[memok-ai] dreaming 结果将写入 SQLite 表 dream_logs");
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    logger.error?.(`[memok-ai] dreaming-pipeline 定时无效: pattern=${pattern} ${msg}`);
+    logger.error?.(
+      `[memok-ai] dreaming-pipeline 定时无效: pattern=${pattern} ${msg}`,
+    );
   }
 }

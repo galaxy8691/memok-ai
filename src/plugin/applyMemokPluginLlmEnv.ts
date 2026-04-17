@@ -30,7 +30,10 @@ const ENV_BASE = "OPENAI_BASE_URL";
 const ENV_MODEL = "MEMOK_LLM_MODEL";
 
 /** OpenAI 兼容 HTTP 端点（末尾一般含 `/v1`） */
-const PRESET_BASE_URL: Record<Exclude<MemokLlmProvider, "inherit" | "openai" | "custom">, string> = {
+const PRESET_BASE_URL: Record<
+  Exclude<MemokLlmProvider, "inherit" | "openai" | "custom">,
+  string
+> = {
   deepseek: "https://api.deepseek.com/v1",
   openrouter: "https://openrouter.ai/api/v1",
   moonshot: "https://api.moonshot.cn/v1",
@@ -85,7 +88,8 @@ export function applyMemokPluginLlmEnv(
     }
   }
 
-  const model = (cfg.llmModel ?? "").trim() || (cfg.llmModelPreset ?? "").trim();
+  const model =
+    (cfg.llmModel ?? "").trim() || (cfg.llmModelPreset ?? "").trim();
   if (model) {
     envSetIfEmpty(ENV_MODEL, model);
   }

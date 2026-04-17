@@ -70,7 +70,9 @@ describe("runStoryWordSentenceBucketsFromDb", () => {
     expect(out.story).toBe("dream");
     expect(out.words).toEqual(["a"]);
     expect(out.relevance.sentences).toEqual([{ id: 1, score: 80 }]);
-    expect(out.normalWordRelevance.normalWords).toEqual([{ id: 10, score: 40 }]);
+    expect(out.normalWordRelevance.normalWords).toEqual([
+      { id: 10, score: 40 },
+    ]);
     expect(out.buckets.id_ge_60).toEqual([1]);
     expect(out.normalWordBuckets).toEqual({
       id_ge_60: [],

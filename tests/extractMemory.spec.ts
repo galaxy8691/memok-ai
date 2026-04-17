@@ -11,19 +11,36 @@ function createFixtureDb(): Database.Database {
     CREATE TABLE sentences (id INTEGER PRIMARY KEY AUTOINCREMENT, sentence TEXT, weight INTEGER, duration INTEGER, last_edit_date TEXT, is_short_term INTEGER, duration_change_times INTEGER NOT NULL DEFAULT 0);
     CREATE TABLE sentence_to_normal_link (normal_id INTEGER, sentence_id INTEGER, weight INTEGER);
   `);
-  db.prepare("INSERT INTO words (word) VALUES (?), (?), (?), (?), (?)").run("a", "b", "c", "d", "e");
+  db.prepare("INSERT INTO words (word) VALUES (?), (?), (?), (?), (?)").run(
+    "a",
+    "b",
+    "c",
+    "d",
+    "e",
+  );
   db.prepare("INSERT INTO normal_words (word) VALUES (?)").run("N");
   const w = db.prepare("SELECT id FROM words").all() as { id: number }[];
-  const nid = (db.prepare("SELECT id FROM normal_words WHERE word = ?").get("N") as { id: number }).id;
+  const nid = (
+    db.prepare("SELECT id FROM normal_words WHERE word = ?").get("N") as {
+      id: number;
+    }
+  ).id;
   for (const row of w) {
-    db.prepare("INSERT INTO word_to_normal_link (word_id, normal_id, weight) VALUES (?, ?, 1)").run(row.id, nid);
+    db.prepare(
+      "INSERT INTO word_to_normal_link (word_id, normal_id, weight) VALUES (?, ?, 1)",
+    ).run(row.id, nid);
   }
   db.prepare(
     "INSERT INTO sentences (sentence, weight, duration, last_edit_date, is_short_term) VALUES (?, 1, 7, '2026-01-01', 1), (?, 2, 14, '2026-01-02', 0), (?, 1, 1, '2026-01-03', 0), (?, 1, 1, '2026-01-04', 0)",
   ).run("短句", "长A", "长B", "长C");
-  const srows = db.prepare("SELECT id, sentence FROM sentences").all() as { id: number; sentence: string }[];
+  const srows = db.prepare("SELECT id, sentence FROM sentences").all() as {
+    id: number;
+    sentence: string;
+  }[];
   for (const s of srows) {
-    db.prepare("INSERT INTO sentence_to_normal_link (normal_id, sentence_id, weight) VALUES (?, ?, 1)").run(nid, s.id);
+    db.prepare(
+      "INSERT INTO sentence_to_normal_link (normal_id, sentence_id, weight) VALUES (?, ?, 1)",
+    ).run(nid, s.id);
   }
   return db;
 }
@@ -46,7 +63,10 @@ describe("extractMemorySentencesByWordSample", () => {
   it("merges short_term then weighted long_term sample in single sentences array", () => {
     const db = createFixtureDb();
     try {
-      const out = extractMemorySentencesByWordSample(db, { fraction: 1, longTermFraction: 0.2 });
+      const out = extractMemorySentencesByWordSample(db, {
+        fraction: 1,
+        longTermFraction: 0.2,
+      });
       const longN = 3;
       const want = Math.max(1, Math.round(longN * 0.2));
       const longPicked = Math.min(want, longN);
@@ -83,11 +103,15 @@ describe("extractMemorySentencesByWordSample", () => {
     for (let i = 0; i < 3; i += 1) {
       db.prepare("INSERT INTO words (word) VALUES (?)").run(`w${i}`);
     }
-    const nInfo = db.prepare("INSERT INTO normal_words (word) VALUES (?)").run("N");
+    const nInfo = db
+      .prepare("INSERT INTO normal_words (word) VALUES (?)")
+      .run("N");
     const nid = Number(nInfo.lastInsertRowid);
     const wrows = db.prepare("SELECT id FROM words").all() as { id: number }[];
     for (const r of wrows) {
-      db.prepare("INSERT INTO word_to_normal_link (word_id, normal_id, weight) VALUES (?, ?, 1)").run(r.id, nid);
+      db.prepare(
+        "INSERT INTO word_to_normal_link (word_id, normal_id, weight) VALUES (?, ?, 1)",
+      ).run(r.id, nid);
     }
     const sInfo = db
       .prepare(
@@ -95,7 +119,9 @@ describe("extractMemorySentencesByWordSample", () => {
       )
       .run("s");
     const sid = Number(sInfo.lastInsertRowid);
-    db.prepare("INSERT INTO sentence_to_normal_link (normal_id, sentence_id, weight) VALUES (?, ?, 1)").run(nid, sid);
+    db.prepare(
+      "INSERT INTO sentence_to_normal_link (normal_id, sentence_id, weight) VALUES (?, ?, 1)",
+    ).run(nid, sid);
     const out = extractMemorySentencesByWordSample(db, { fraction: 0.2 });
     expect(out.sentences.length).toBe(1);
     expect(out.sentences[0].is_short_term).toBe(true);

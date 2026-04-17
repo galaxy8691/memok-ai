@@ -12,8 +12,12 @@ function makeDb(root: string): string {
     CREATE TABLE sentences (id INTEGER PRIMARY KEY, sentence TEXT, weight INTEGER, duration INTEGER);
     CREATE TABLE sentence_to_normal_link (normal_id INTEGER, sentence_id INTEGER, weight INTEGER);
   `);
-  db.prepare("INSERT INTO sentences (id, sentence, weight, duration) VALUES (1,'top',1,1),(2,'orphan A',1,1),(3,'orphan B',1,1),(4,'linked keep',1,1)").run();
-  db.prepare("INSERT INTO sentence_to_normal_link (normal_id, sentence_id, weight) VALUES (9,1,1),(9,4,1)").run();
+  db.prepare(
+    "INSERT INTO sentences (id, sentence, weight, duration) VALUES (1,'top',1,1),(2,'orphan A',1,1),(3,'orphan B',1,1),(4,'linked keep',1,1)",
+  ).run();
+  db.prepare(
+    "INSERT INTO sentence_to_normal_link (normal_id, sentence_id, weight) VALUES (9,1,1),(9,4,1)",
+  ).run();
   db.close();
   return dbPath;
 }
@@ -47,7 +51,9 @@ describe("mergeOrphanSentencesIntoTopScored", () => {
       expect(out.deletedCount).toBe(2);
 
       const db = new Database(dbPath, { readonly: true });
-      const rows = db.prepare("SELECT id, sentence FROM sentences ORDER BY id").all() as { id: number; sentence: string }[];
+      const rows = db
+        .prepare("SELECT id, sentence FROM sentences ORDER BY id")
+        .all() as { id: number; sentence: string }[];
       db.close();
       expect(rows.map((r) => r.id)).toEqual([1, 4]);
       expect(rows[0].sentence).toBe("top + orphan A + orphan B");

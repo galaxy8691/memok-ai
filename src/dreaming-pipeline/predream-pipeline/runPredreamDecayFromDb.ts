@@ -26,7 +26,9 @@ export function runPredreamDecayFromDb(dbPath: string): PredreamDecayResult {
   try {
     db.pragma("foreign_keys = ON");
     const runTx = db.transaction((): PredreamDecayResult => {
-      const dec = db.prepare("UPDATE sentences SET duration = duration - 1").run();
+      const dec = db
+        .prepare("UPDATE sentences SET duration = duration - 1")
+        .run();
       const sentencesDurationDecremented = dec.changes;
 
       const promote = db

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  type MemokSetupAnswers,
   isValidDailyAt,
   mergeMemokSetupToConfig,
-  type MemokSetupAnswers,
 } from "../src/plugin/setupWizard.js";
 
 describe("setupWizard helpers", () => {
@@ -39,7 +39,9 @@ describe("setupWizard helpers", () => {
     };
     const out = mergeMemokSetupToConfig(cur, answers);
     const memok = ((out.plugins as any).entries["memok-ai"] as any).config;
-    expect(((out.plugins as any).entries["memok-ai"] as any).enabled).toBe(true);
+    expect(((out.plugins as any).entries["memok-ai"] as any).enabled).toBe(
+      true,
+    );
     expect(memok.dbPath).toBe("/tmp/m.db");
     expect(memok.llmProvider).toBe("deepseek");
     expect(memok.llmModelPreset).toBe("deepseek-chat");

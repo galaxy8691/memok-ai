@@ -16,7 +16,9 @@ export function hardenDb(db: Database.Database): void {
   };
   const runTx = db.transaction(() => {
     if (tableExists("word_to_normal_link")) {
-      db.prepare("DELETE FROM word_to_normal_link WHERE normal_id IS NULL").run();
+      db.prepare(
+        "DELETE FROM word_to_normal_link WHERE normal_id IS NULL",
+      ).run();
 
       db.prepare(
         `DELETE FROM word_to_normal_link

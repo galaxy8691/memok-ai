@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
-  runStoryWordSentencePipelineFromDb,
   type StoryWordSentenceBucketsResult,
+  runStoryWordSentencePipelineFromDb,
 } from "../src/dreaming-pipeline/story-word-sentence-pipeline/index.js";
 
-function stubRound(overrides: Partial<StoryWordSentenceBucketsResult> = {}): StoryWordSentenceBucketsResult {
+function stubRound(
+  overrides: Partial<StoryWordSentenceBucketsResult> = {},
+): StoryWordSentenceBucketsResult {
   const base: StoryWordSentenceBucketsResult = {
     story: "x",
     words: ["a"],

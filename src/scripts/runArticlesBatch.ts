@@ -1,7 +1,13 @@
-import { mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
-import { basename, extname, join, resolve, relative } from "node:path";
-import { articleWordPipelineV2 } from "../article-word-pipeline/v2/articleWordPipeline.js";
+import {
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
+import { basename, extname, join, relative, resolve } from "node:path";
 import { dumpArticleSentenceCoreCombineTupleV2Json } from "../article-word-pipeline/v2/articleSentenceCoreCombine.js";
+import { articleWordPipelineV2 } from "../article-word-pipeline/v2/articleWordPipeline.js";
 
 type CliOptions = {
   inputDir: string;
@@ -69,13 +75,18 @@ async function main(): Promise<void> {
   mkdirSync(outputDir, { recursive: true });
 
   const all = collectTxtFiles(inputDir);
-  const sliced = all.filter((_, idx) => idx >= opts.fromIndex && (opts.toIndex === null || idx <= opts.toIndex));
+  const sliced = all.filter(
+    (_, idx) =>
+      idx >= opts.fromIndex && (opts.toIndex === null || idx <= opts.toIndex),
+  );
   if (sliced.length === 0) {
     console.log("没有找到待处理的 .txt 文件。");
     return;
   }
 
-  console.log(`将处理 ${sliced.length} 个文件（输入目录: ${inputDir}，输出目录: ${outputDir}）`);
+  console.log(
+    `将处理 ${sliced.length} 个文件（输入目录: ${inputDir}，输出目录: ${outputDir}）`,
+  );
   const errors: string[] = [];
 
   for (let i = 0; i < sliced.length; i += 1) {
@@ -84,7 +95,9 @@ async function main(): Promise<void> {
     if (opts.skipExisting) {
       try {
         statSync(outPath);
-        console.log(`[${i + 1}/${sliced.length}] 跳过已存在: ${basename(outPath)}`);
+        console.log(
+          `[${i + 1}/${sliced.length}] 跳过已存在: ${basename(outPath)}`,
+        );
         continue;
       } catch {
         // not exists
@@ -94,20 +107,30 @@ async function main(): Promise<void> {
     try {
       const text = readFileSync(file, "utf-8");
       const [combined, normalized] = await articleWordPipelineV2(text);
-      const payload = dumpArticleSentenceCoreCombineTupleV2Json(combined, normalized, 2);
+      const payload = dumpArticleSentenceCoreCombineTupleV2Json(
+        combined,
+        normalized,
+        2,
+      );
       writeFileSync(outPath, payload, "utf-8");
-      console.log(`[${i + 1}/${sliced.length}] 完成: ${basename(file)} -> ${basename(outPath)}`);
+      console.log(
+        `[${i + 1}/${sliced.length}] 完成: ${basename(file)} -> ${basename(outPath)}`,
+      );
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
       errors.push(`${file}\t${msg}`);
-      console.error(`[${i + 1}/${sliced.length}] 失败: ${basename(file)}: ${msg}`);
+      console.error(
+        `[${i + 1}/${sliced.length}] 失败: ${basename(file)}: ${msg}`,
+      );
     }
   }
 
   if (errors.length > 0) {
     const errPath = join(outputDir, "batch-errors.log");
     writeFileSync(errPath, `${errors.join("\n")}\n`, "utf-8");
-    console.log(`批处理结束：成功 ${sliced.length - errors.length}，失败 ${errors.length}。错误日志: ${errPath}`);
+    console.log(
+      `批处理结束：成功 ${sliced.length - errors.length}，失败 ${errors.length}。错误日志: ${errPath}`,
+    );
   } else {
     console.log(`批处理结束：全部成功，共 ${sliced.length} 个文件。`);
   }

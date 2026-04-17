@@ -10,7 +10,10 @@ function makeDb(root: string): string {
   const db = new Database(dbPath);
   db.exec(`CREATE TABLE normal_words (id INTEGER PRIMARY KEY, word TEXT);`);
   for (let i = 1; i <= 10; i += 1) {
-    db.prepare("INSERT INTO normal_words (id, word) VALUES (?, ?)").run(i, `w${i}`);
+    db.prepare("INSERT INTO normal_words (id, word) VALUES (?, ?)").run(
+      i,
+      `w${i}`,
+    );
   }
   db.close();
   return dbPath;

@@ -20,12 +20,21 @@ function scrubOpenclawHeartbeatTemplates(text: string): string {
     "\n",
   );
   // 单独出现的 workspace 路径行 / 勿读文档行 / 内部处理说明
-  s = s.replace(/(^|[\r\n])\s*When reading HEARTBEAT\.md, use workspace file[^\n]*\s*/gim, "\n");
+  s = s.replace(
+    /(^|[\r\n])\s*When reading HEARTBEAT\.md, use workspace file[^\n]*\s*/gim,
+    "\n",
+  );
   s = s.replace(/(^|[\r\n])\s*Do not read docs\/heartbeat\.md\.?\s*/gim, "\n");
-  s = s.replace(/(^|[\r\n])\s*Handle this reminder internally[^\n]*\s*/gim, "\n");
+  s = s.replace(
+    /(^|[\r\n])\s*Handle this reminder internally[^\n]*\s*/gim,
+    "\n",
+  );
   s = s.replace(/(^|[\r\n])\s*The reminder content is:\s*/gim, "\n");
   // 中文「执行 HEARTBEAT.md 检查清单」整块（可含多行 System: 前缀列表）
-  s = s.replace(/执行 HEARTBEAT\.md 检查清单[：:][\s\S]*?完成后报告结果。\s*/g, "");
+  s = s.replace(
+    /执行 HEARTBEAT\.md 检查清单[：:][\s\S]*?完成后报告结果。\s*/g,
+    "",
+  );
   // 去掉孤立的 `System:` 空行噪声
   s = s.replace(/(^|[\r\n])System:\s*(?=[\r\n]|$)/g, "\n");
   s = s.replace(/\n{3,}/g, "\n\n");
@@ -46,14 +55,19 @@ export function scrubOpenclawHeartbeatArtifacts(text: string): string {
 
 /** 对 v2 二元组中所有用户可见字符串字段做 HEARTBEAT* 脱敏（写入 SQLite / 插件前调用）。 */
 export function scrubHeartbeatInAwpTuple(
-  tuple: readonly [ArticleSentenceCoreCombinedData, ArticleCoreWordsNomalizedData],
+  tuple: readonly [
+    ArticleSentenceCoreCombinedData,
+    ArticleCoreWordsNomalizedData,
+  ],
 ): [ArticleSentenceCoreCombinedData, ArticleCoreWordsNomalizedData] {
   const [sc, nm] = tuple;
   return [
     {
       sentence_core: sc.sentence_core.map((item) => ({
         sentence: scrubOpenclawHeartbeatArtifacts(item.sentence),
-        core_words: item.core_words.map((w) => scrubOpenclawHeartbeatArtifacts(w)),
+        core_words: item.core_words.map((w) =>
+          scrubOpenclawHeartbeatArtifacts(w),
+        ),
       })),
     },
     {

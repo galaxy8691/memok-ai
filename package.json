@@ -8,9 +8,7 @@
   },
   "type": "module",
   "openclaw": {
-    "extensions": [
-      "./dist/plugin.js"
-    ],
+    "extensions": ["./dist/plugin.js"],
     "compat": {
       "pluginApi": ">=2026.3.24",
       "minGatewayVersion": "2026.3.24"
@@ -18,6 +16,9 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "ci": "npm run lint && npm run build && npm run test",
+    "lint": "biome check .",
+    "format": "biome format --write .",
     "dev": "tsx src/cli.ts",
     "test": "vitest run",
     "batch": "tsx src/scripts/runArticlesBatch.ts",
@@ -26,11 +27,7 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "files": [
-    "dist",
-    "openclaw.plugin.json",
-    "skills"
-  ],
+  "files": ["dist", "openclaw.plugin.json", "skills"],
   "dependencies": {
     "@sinclair/typebox": "^0.34.49",
     "better-sqlite3": "^12.9.0",
@@ -42,6 +39,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^25.6.0",
     "tsx": "^4.21.0",

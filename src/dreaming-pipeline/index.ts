@@ -13,4 +13,7 @@ export {
   type StoryWordSentencePipelineOrphanMergeTotals,
   type StoryWordSentencePipelineResult,
 } from "./story-word-sentence-pipeline/index.js";
-export { runPredreamDecayFromDb, type PredreamDecayResult } from "./predream-pipeline/index.js";
+export {
+  runPredreamDecayFromDb,
+  type PredreamDecayResult,
+} from "./predream-pipeline/index.js";

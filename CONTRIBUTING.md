@@ -12,10 +12,13 @@ cp .env.example .env
 Useful commands:
 
 ```bash
+npm run lint
 npm run build
 npm test
 npm run dev -- --help
 ```
+
+Formatting and linting use [Biome](https://biomejs.dev/) (`biome.json` at repo root). CI runs `npm run lint` before build.
 
 ## Pull Request Checklist
 
@@ -23,8 +26,9 @@ Before opening a PR:
 
 - Keep changes focused (one problem per PR when possible)
 - Add or update tests for behavior changes
-- Run `npm run build` and `npm test`
+- Run `npm run lint`, `npm run build`, and `npm test`
 - Update docs when CLI/plugin behavior changes
+- If you change install steps or installer env vars, update both [README.md](README.md) and [README.zh-CN.md](README.zh-CN.md) in the same PR
 - Include a clear summary: what changed, why, and how it was verified
 
 ## Code Style

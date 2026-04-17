@@ -5,22 +5,25 @@ import {
   runParseOrJson,
 } from "../../llm/openaiCompat.js";
 import {
-  ArticleCoreWordsData,
-  ArticleCoreWordsNomalizedData,
+  type ArticleCoreWordsData,
+  type ArticleCoreWordsNomalizedData,
   ArticleCoreWordsNomalizedDataSchema,
 } from "./schemas.js";
 
-const ENV_V2_ARTICLE_CORE_WORDS_NORMALIZE = "MEMOK_V2_ARTICLE_CORE_WORDS_NORMALIZE_LLM_MODEL";
+const ENV_V2_ARTICLE_CORE_WORDS_NORMALIZE =
+  "MEMOK_V2_ARTICLE_CORE_WORDS_NORMALIZE_LLM_MODEL";
 /** 全流水线共用的默认模型；未设各阶段专有变量时使用 */
 const ENV_MEMOK_LLM_MODEL = "MEMOK_LLM_MODEL";
-const ENV_CORE_WORDS_NORMALIZE_LLM_MODEL = "MEMOK_CORE_WORDS_NORMALIZE_LLM_MODEL";
+const ENV_CORE_WORDS_NORMALIZE_LLM_MODEL =
+  "MEMOK_CORE_WORDS_NORMALIZE_LLM_MODEL";
 const ENV_SENTENCE_MERGE_LLM_MODEL = "MEMOK_SENTENCE_MERGE_LLM_MODEL";
 const ENV_SENTENCE_DEDUCE_MODEL = "MEMOK_SENTENCE_DEDUCE_LLM_MODEL";
 const ENV_SENTENCE_CORE_MODEL = "MEMOK_SENTENCE_CORE_LLM_MODEL";
 const ENV_SEGMENT_CORE_MODEL = "MEMOK_SEGMENT_CORE_LLM_MODEL";
 const ENV_SENTENCE_PROCESS_MODEL = "MEMOK_SENTENCE_PROCESS_LLM_MODEL";
 const ENV_ARTICLE_MODEL = "MEMOK_ARTICLE_LLM_MODEL";
-const ENV_NORMALIZE_MAX_OUTPUT_TOKENS = "MEMOK_CORE_WORDS_NORMALIZE_MAX_OUTPUT_TOKENS";
+const ENV_NORMALIZE_MAX_OUTPUT_TOKENS =
+  "MEMOK_CORE_WORDS_NORMALIZE_MAX_OUTPUT_TOKENS";
 const DEFAULT_MODEL = "gpt-4o-mini";
 const DEFAULT_NORMALIZE_OUTPUT_TOKEN_BUDGET = 32768;
 const DEEPSEEK_CHAT_MAX_TOKENS_CAP = 8192;
@@ -43,7 +46,8 @@ export const SYSTEM_PROMPT_ARTICLE_CORE_WORDS_NORMALIZE = `你是「记忆锚点
 3) 若 \`\`w\`\` 无需与任何其他词合并，则输出 \`\`{ "original_text": "w", "new_text": "w" }\`\` 或 \`\`new_text\`\` 为轻微字形规范（勿改专名事实）。
 4) 不要输出 markdown 围栏；不要输出除上述 JSON 以外的文字。`;
 
-export const JSON_MODE_USER_SUFFIX_ARTICLE_CORE_WORDS_NORMALIZE = '\n\n请只输出一个 JSON 对象，且仅包含一个键 "nomalized"（数组）；数组元素每个为对象，仅含键 "original_text" 与 "new_text"（字符串）。不要使用 markdown 代码围栏。';
+export const JSON_MODE_USER_SUFFIX_ARTICLE_CORE_WORDS_NORMALIZE =
+  '\n\n请只输出一个 JSON 对象，且仅包含一个键 "nomalized"（数组）；数组元素每个为对象，仅含键 "original_text" 与 "new_text"（字符串）。不要使用 markdown 代码围栏。';
 
 function normalizeOutputTokenBudget(): number {
   const raw = (process.env[ENV_NORMALIZE_MAX_OUTPUT_TOKENS] ?? "").trim();
@@ -139,7 +143,7 @@ function canonicalizeNewText(newText: string, originalText: string): string {
   if (nt) {
     return nt;
   }
-  let cleanedSrc = src
+  const cleanedSrc = src
     .replace(/\d+/g, "")
     .replace(
       /[`~!@#$%^&*()+=\[\]{}\\|;:'",.<>/?·！￥…（）【】《》、，。；：‘’“”\-★☆]/g,
@@ -180,7 +184,10 @@ async function articleCoreWordsNormalizeLlm(
 ): Promise<ArticleCoreWordsNomalizedData> {
   const userBody = `以下为 core_words（JSON，已按首次出现顺序去重）。请输出 nomalized，规则见系统提示。\n${JSON.stringify(payload, null, 0)}`;
   const messagesParse = [
-    { role: "system" as const, content: SYSTEM_PROMPT_ARTICLE_CORE_WORDS_NORMALIZE },
+    {
+      role: "system" as const,
+      content: SYSTEM_PROMPT_ARTICLE_CORE_WORDS_NORMALIZE,
+    },
     { role: "user" as const, content: userBody },
   ];
   const messagesJson = [
@@ -188,7 +195,10 @@ async function articleCoreWordsNormalizeLlm(
       role: "system" as const,
       content: `${SYSTEM_PROMPT_ARTICLE_CORE_WORDS_NORMALIZE}\n\n你必须只输出一个合法 JSON 对象。`,
     },
-    { role: "user" as const, content: userBody + JSON_MODE_USER_SUFFIX_ARTICLE_CORE_WORDS_NORMALIZE },
+    {
+      role: "user" as const,
+      content: userBody + JSON_MODE_USER_SUFFIX_ARTICLE_CORE_WORDS_NORMALIZE,
+    },
   ];
   const deepseek = isDeepseekCompatibleBaseUrl();
   const budget = effectiveNormalizeOutputBudget(deepseek);
@@ -215,7 +225,11 @@ export async function normalizeArticleCoreWordsSynonyms(
   const resolvedModel = resolveModel(opts?.model);
   const payload = { core_words: ordered };
   const client = opts?.client ?? new OpenAI();
-  const raw = await articleCoreWordsNormalizeLlm(client, payload, resolvedModel);
+  const raw = await articleCoreWordsNormalizeLlm(
+    client,
+    payload,
+    resolvedModel,
+  );
   return mergeLlmWithCoverage(raw, ordered);
 }
 

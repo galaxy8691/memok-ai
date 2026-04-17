@@ -4,7 +4,8 @@ import { applyMemokPluginLlmEnv } from "../src/plugin/applyMemokPluginLlmEnv.js"
 const KEYS = ["OPENAI_API_KEY", "OPENAI_BASE_URL", "MEMOK_LLM_MODEL"] as const;
 
 describe("applyMemokPluginLlmEnv", () => {
-  const snapshot: Partial<Record<(typeof KEYS)[number], string | undefined>> = {};
+  const snapshot: Partial<Record<(typeof KEYS)[number], string | undefined>> =
+    {};
 
   beforeEach(() => {
     for (const k of KEYS) {

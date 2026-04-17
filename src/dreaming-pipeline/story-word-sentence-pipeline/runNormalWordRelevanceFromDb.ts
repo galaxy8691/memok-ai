@@ -1,18 +1,19 @@
-import OpenAI from "openai";
+import type OpenAI from "openai";
 import {
-  scoreNormalWordRelevance,
-  type NormalWordRelevanceOutput,
-} from "./scoreNormalWordRelevance.js";
-import {
-  sampleNormalWordsForRelevance,
   type SampleNormalWordsForRelevanceOpts,
+  sampleNormalWordsForRelevance,
 } from "./sampleNormalWordsForRelevance.js";
+import {
+  type NormalWordRelevanceOutput,
+  scoreNormalWordRelevance,
+} from "./scoreNormalWordRelevance.js";
 
-export type RunNormalWordRelevanceFromDbOpts = SampleNormalWordsForRelevanceOpts & {
-  client?: OpenAI;
-  model?: string;
-  maxTokens?: number;
-};
+export type RunNormalWordRelevanceFromDbOpts =
+  SampleNormalWordsForRelevanceOpts & {
+    client?: OpenAI;
+    model?: string;
+    maxTokens?: number;
+  };
 
 export async function runNormalWordRelevanceFromDb(
   dbPath: string,

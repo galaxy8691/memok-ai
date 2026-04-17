@@ -1,30 +1,33 @@
-import OpenAI from "openai";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { generateDreamText } from "./generateDreamText.js";
-import { sampleWordStrings } from "./sampleWordStrings.js";
+import type OpenAI from "openai";
 import {
-  buildNormalWordRelevanceBuckets,
-  buildRelevanceBuckets,
-  type NormalWordRelevanceBuckets,
-  type RelevanceBuckets,
-} from "./buildRelevanceBuckets.js";
-import {
-  applyNormalWordLinkFeedback,
   type ApplyNormalWordLinkFeedbackResult,
+  applyNormalWordLinkFeedback,
 } from "./applyNormalWordLinkFeedback.js";
 import {
-  applyResultLinkFeedback,
   type ApplyResultLinkFeedbackResult,
+  applyResultLinkFeedback,
 } from "./applyResultLinkFeedback.js";
-import { deleteOrphanNormalWords, type DeleteOrphanNormalWordsResult } from "./deleteOrphanNormalWords.js";
 import {
-  mergeOrphanSentencesIntoTopScored,
+  type NormalWordRelevanceBuckets,
+  type RelevanceBuckets,
+  buildNormalWordRelevanceBuckets,
+  buildRelevanceBuckets,
+} from "./buildRelevanceBuckets.js";
+import {
+  type DeleteOrphanNormalWordsResult,
+  deleteOrphanNormalWords,
+} from "./deleteOrphanNormalWords.js";
+import { generateDreamText } from "./generateDreamText.js";
+import {
   type MergeOrphanResult,
+  mergeOrphanSentencesIntoTopScored,
 } from "./mergeOrphanSentencesIntoTopScored.js";
 import { runNormalWordRelevanceFromDb } from "./runNormalWordRelevanceFromDb.js";
 import { runSentenceRelevanceFromDb } from "./runSentenceRelevanceFromDb.js";
+import { sampleWordStrings } from "./sampleWordStrings.js";
 import type { NormalWordRelevanceOutput } from "./scoreNormalWordRelevance.js";
 import type { SentenceRelevanceOutput } from "./scoreSentenceRelevance.js";
 
@@ -70,12 +73,19 @@ export async function runStoryWordSentenceBucketsFromDb(
 ): Promise<StoryWordSentenceBucketsResult> {
   const sampleWordsFn = opts?.sampleWordStringsFn ?? sampleWordStrings;
   const genStoryFn = opts?.generateDreamTextFn ?? generateDreamText;
-  const runSentFn = opts?.runSentenceRelevanceFromDbFn ?? runSentenceRelevanceFromDb;
-  const runNwFn = opts?.runNormalWordRelevanceFromDbFn ?? runNormalWordRelevanceFromDb;
-  const delOrphanFn = opts?.deleteOrphanNormalWordsFn ?? deleteOrphanNormalWords;
-  const applyNwFbFn = opts?.applyNormalWordLinkFeedbackFn ?? applyNormalWordLinkFeedback;
-  const applySentFbFn = opts?.applyResultLinkFeedbackFn ?? applyResultLinkFeedback;
-  const mergeOrphanFn = opts?.mergeOrphanSentencesIntoTopScoredFn ?? mergeOrphanSentencesIntoTopScored;
+  const runSentFn =
+    opts?.runSentenceRelevanceFromDbFn ?? runSentenceRelevanceFromDb;
+  const runNwFn =
+    opts?.runNormalWordRelevanceFromDbFn ?? runNormalWordRelevanceFromDb;
+  const delOrphanFn =
+    opts?.deleteOrphanNormalWordsFn ?? deleteOrphanNormalWords;
+  const applyNwFbFn =
+    opts?.applyNormalWordLinkFeedbackFn ?? applyNormalWordLinkFeedback;
+  const applySentFbFn =
+    opts?.applyResultLinkFeedbackFn ?? applyResultLinkFeedback;
+  const mergeOrphanFn =
+    opts?.mergeOrphanSentencesIntoTopScoredFn ??
+    mergeOrphanSentencesIntoTopScored;
 
   const words = sampleWordsFn(dbPath, { maxWords: opts?.maxWords });
   const story = await genStoryFn(words, {
@@ -98,7 +108,8 @@ export async function runStoryWordSentenceBucketsFromDb(
     words,
     buckets,
   });
-  const normalWordBuckets = buildNormalWordRelevanceBuckets(normalWordRelevance);
+  const normalWordBuckets =
+    buildNormalWordRelevanceBuckets(normalWordRelevance);
   const normalWordLinkFeedback = applyNwFbFn(dbPath, {
     words,
     normalWordBuckets,

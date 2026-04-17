@@ -13,14 +13,24 @@ function makeDb(root: string): string {
     CREATE TABLE normal_words (id INTEGER PRIMARY KEY, word TEXT);
     CREATE TABLE word_to_normal_link (word_id INTEGER, normal_id INTEGER, weight INTEGER);
   `);
-  db.prepare("INSERT INTO words (id, word) VALUES (1, 'alpha'), (2, 'beta')").run();
-  db.prepare("INSERT INTO normal_words (id, word) VALUES (101, 'N101'), (102, 'N102'), (103, 'N103'), (201, 'N201')").run();
+  db.prepare(
+    "INSERT INTO words (id, word) VALUES (1, 'alpha'), (2, 'beta')",
+  ).run();
+  db.prepare(
+    "INSERT INTO normal_words (id, word) VALUES (101, 'N101'), (102, 'N102'), (103, 'N103'), (201, 'N201')",
+  ).run();
   // N101: links from word 1 and 2, high bucket target
-  db.prepare("INSERT INTO word_to_normal_link (word_id, normal_id, weight) VALUES (1, 101, 2), (2, 101, 1)").run();
+  db.prepare(
+    "INSERT INTO word_to_normal_link (word_id, normal_id, weight) VALUES (1, 101, 2), (2, 101, 1)",
+  ).run();
   // N102: only word 1, low bucket -> minus
-  db.prepare("INSERT INTO word_to_normal_link (word_id, normal_id, weight) VALUES (1, 102, 1)").run();
+  db.prepare(
+    "INSERT INTO word_to_normal_link (word_id, normal_id, weight) VALUES (1, 102, 1)",
+  ).run();
   // N103: conflict (both plus and minus lists) -> skip
-  db.prepare("INSERT INTO word_to_normal_link (word_id, normal_id, weight) VALUES (1, 103, 3)").run();
+  db.prepare(
+    "INSERT INTO word_to_normal_link (word_id, normal_id, weight) VALUES (1, 103, 3)",
+  ).run();
   db.close();
   return dbPath;
 }
@@ -54,7 +64,9 @@ describe("applyNormalWordLinkFeedback", () => {
 
         const db = new Database(dbPath, { readonly: true });
         const rows = db
-          .prepare("SELECT word_id, normal_id, weight FROM word_to_normal_link ORDER BY normal_id, word_id")
+          .prepare(
+            "SELECT word_id, normal_id, weight FROM word_to_normal_link ORDER BY normal_id, word_id",
+          )
           .all() as { word_id: number; normal_id: number; weight: number }[];
         db.close();
         expect(rows).toEqual([

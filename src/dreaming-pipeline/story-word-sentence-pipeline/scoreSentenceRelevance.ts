@@ -16,18 +16,31 @@ const MAX_SENTENCES_PER_BATCH = 50;
 export const SentenceRelevanceInputSchema = z
   .object({
     story: z.string().min(1),
-    sentences: z.array(z.object({ id: z.number().int(), sentence: z.string() }).strict()),
+    sentences: z.array(
+      z.object({ id: z.number().int(), sentence: z.string() }).strict(),
+    ),
   })
   .strict();
 
 export const SentenceRelevanceOutputSchema = z
   .object({
-    sentences: z.array(z.object({ id: z.number().int(), score: z.number().int().min(0).max(100) }).strict()),
+    sentences: z.array(
+      z
+        .object({
+          id: z.number().int(),
+          score: z.number().int().min(0).max(100),
+        })
+        .strict(),
+    ),
   })
   .strict();
 
-export type SentenceRelevanceInput = z.infer<typeof SentenceRelevanceInputSchema>;
-export type SentenceRelevanceOutput = z.infer<typeof SentenceRelevanceOutputSchema>;
+export type SentenceRelevanceInput = z.infer<
+  typeof SentenceRelevanceInputSchema
+>;
+export type SentenceRelevanceOutput = z.infer<
+  typeof SentenceRelevanceOutputSchema
+>;
 
 function resolveModel(explicit?: string): string {
   if (explicit?.trim()) {
@@ -42,7 +55,10 @@ function resolveModel(explicit?: string): string {
   return DEFAULT_MODEL;
 }
 
-function effectiveOutputBudget(forDeepseek: boolean, explicit?: number): number {
+function effectiveOutputBudget(
+  forDeepseek: boolean,
+  explicit?: number,
+): number {
   const cap = explicit ?? DEFAULT_MAX_OUTPUT;
   if (forDeepseek) {
     return Math.max(1, Math.min(cap, DEEPSEEK_CHAT_MAX_TOKENS_CAP));
@@ -111,11 +127,16 @@ async function scoreOneBatch(
         role: "system" as const,
         content: `${SYSTEM_PROMPT_SENTENCE_RELEVANCE}\n\n你必须只输出一个合法 JSON 对象。`,
       },
-      { role: "user" as const, content: `${userBody}\n\n只输出 JSON，不要代码围栏。` },
+      {
+        role: "user" as const,
+        content: `${userBody}\n\n只输出 JSON，不要代码围栏。`,
+      },
     ],
     schema: SentenceRelevanceOutputSchema,
     responseName: "SentenceRelevanceOutput",
-    ...(opts.deepseek ? { maxTokens: opts.budget } : { maxCompletionTokens: opts.budget }),
+    ...(opts.deepseek
+      ? { maxTokens: opts.budget }
+      : { maxCompletionTokens: opts.budget }),
   };
 
   let lastError: unknown;
@@ -150,12 +171,21 @@ export async function scoreSentenceRelevance(
   }
 
   const merged: SentenceRelevanceOutput["sentences"] = [];
-  for (let i = 0; i < parsedInput.sentences.length; i += MAX_SENTENCES_PER_BATCH) {
+  for (
+    let i = 0;
+    i < parsedInput.sentences.length;
+    i += MAX_SENTENCES_PER_BATCH
+  ) {
     const chunkInput: SentenceRelevanceInput = {
       story: parsedInput.story,
       sentences: parsedInput.sentences.slice(i, i + MAX_SENTENCES_PER_BATCH),
     };
-    const chunkOut = await scoreOneBatch(chunkInput, { client, model, budget, deepseek });
+    const chunkOut = await scoreOneBatch(chunkInput, {
+      client,
+      model,
+      budget,
+      deepseek,
+    });
     merged.push(...chunkOut.sentences);
   }
 

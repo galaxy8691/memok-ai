@@ -23,7 +23,9 @@ export function sampleNormalWordsForRelevance(
   const db = new Database(dbPath, { readonly: true });
   try {
     db.pragma("foreign_keys = ON");
-    const countRow = db.prepare("SELECT COUNT(*) as c FROM normal_words").get() as { c: number | bigint };
+    const countRow = db
+      .prepare("SELECT COUNT(*) as c FROM normal_words")
+      .get() as { c: number | bigint };
     const n = Number(countRow.c);
     if (n <= 0) {
       throw new Error("normal_words 表为空，无法抽样");

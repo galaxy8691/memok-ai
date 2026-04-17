@@ -25,7 +25,9 @@ export const MemoryExtractedSentenceSchema = z
   })
   .strict();
 
-export type MemoryExtractedSentence = z.infer<typeof MemoryExtractedSentenceSchema>;
+export type MemoryExtractedSentence = z.infer<
+  typeof MemoryExtractedSentenceSchema
+>;
 
 export const MemoryExtractResponseSchema = z
   .object({
@@ -63,7 +65,9 @@ type RawJoinRow = RawSentenceRow & {
   normal_word: string;
 };
 
-function parseCore(row: RawSentenceRow): Omit<MemoryExtractedSentence, "matched_word"> {
+function parseCore(
+  row: RawSentenceRow,
+): Omit<MemoryExtractedSentence, "matched_word"> {
   return {
     id: row.id,
     sentence: row.sentence,
@@ -128,7 +132,9 @@ export function extractMemorySentencesByWordSample(
   const db = ownDb ? new Database(dbOrPath) : dbOrPath;
   try {
     db.pragma("foreign_keys = ON");
-    const countRow = db.prepare("SELECT COUNT(*) as c FROM words").get() as { c: number | bigint };
+    const countRow = db.prepare("SELECT COUNT(*) as c FROM words").get() as {
+      c: number | bigint;
+    };
     const n = Number(countRow.c);
     if (n <= 0) {
       return emptyResponse();
@@ -163,11 +169,17 @@ export function extractMemorySentencesByWordSample(
 
     const byId = new Map<
       number,
-      Omit<MemoryExtractedSentence, "matched_word"> & { bestRank: number; matched_word: WordMatchLink }
+      Omit<MemoryExtractedSentence, "matched_word"> & {
+        bestRank: number;
+        matched_word: WordMatchLink;
+      }
     >();
     for (const row of rows) {
       const core = parseCore(row);
-      const pair: WordMatchLink = { word: row.word, normal_word: row.normal_word };
+      const pair: WordMatchLink = {
+        word: row.word,
+        normal_word: row.normal_word,
+      };
       const rank = wordRank.get(row.word_id) ?? Number.POSITIVE_INFINITY;
       let acc = byId.get(core.id);
       if (!acc) {

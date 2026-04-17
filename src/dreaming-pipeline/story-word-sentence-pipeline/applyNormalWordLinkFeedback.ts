@@ -9,7 +9,9 @@ export const NormalWordLinkFeedbackInputSchema = z
   })
   .strict();
 
-export type NormalWordLinkFeedbackInput = z.infer<typeof NormalWordLinkFeedbackInputSchema>;
+export type NormalWordLinkFeedbackInput = z.infer<
+  typeof NormalWordLinkFeedbackInputSchema
+>;
 
 export type ApplyNormalWordLinkFeedbackResult = {
   matchedWordIds: number;
@@ -55,9 +57,17 @@ export function applyNormalWordLinkFeedback(
       if (words.length > 0) {
         const placeholders = words.map(() => "?").join(", ");
         const rows = db
-          .prepare(`SELECT DISTINCT w.id AS word_id FROM words w WHERE w.word IN (${placeholders})`)
+          .prepare(
+            `SELECT DISTINCT w.id AS word_id FROM words w WHERE w.word IN (${placeholders})`,
+          )
           .all(...words) as { word_id: number }[];
-        wordIds = [...new Set(rows.map((r) => r.word_id).filter((n) => Number.isInteger(n) && n > 0))];
+        wordIds = [
+          ...new Set(
+            rows
+              .map((r) => r.word_id)
+              .filter((n) => Number.isInteger(n) && n > 0),
+          ),
+        ];
       }
 
       if (wordIds.length === 0) {
@@ -107,12 +117,16 @@ export function applyNormalWordLinkFeedback(
                           SET weight = weight - 1
                           WHERE normal_id IN (${minusNormPh})
                             AND word_id IN (${wordPlaceholders})`;
-        updatedMinus = Number(db.prepare(minusSql).run(...minusIds, ...wordIds).changes);
+        updatedMinus = Number(
+          db.prepare(minusSql).run(...minusIds, ...wordIds).changes,
+        );
         const deleteSql = `DELETE FROM word_to_normal_link
                            WHERE normal_id IN (${minusNormPh})
                              AND word_id IN (${wordPlaceholders})
                              AND weight <= 0`;
-        deleted = Number(db.prepare(deleteSql).run(...minusIds, ...wordIds).changes);
+        deleted = Number(
+          db.prepare(deleteSql).run(...minusIds, ...wordIds).changes,
+        );
       }
 
       return {

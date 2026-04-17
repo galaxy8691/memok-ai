@@ -56,7 +56,9 @@ describe("prompt consistency with python baseline", () => {
     const pyNorm = readFileSync(pyNormPath, "utf-8");
     const pySent = readFileSync(pySentPath, "utf-8");
 
-    expect(SYSTEM_PROMPT_ARTICLE_CORE_WORDS).toBe(extractTripleQuoted(pyCore, "SYSTEM_PROMPT"));
+    expect(SYSTEM_PROMPT_ARTICLE_CORE_WORDS).toBe(
+      extractTripleQuoted(pyCore, "SYSTEM_PROMPT"),
+    );
     expect(JSON_MODE_USER_SUFFIX_ARTICLE_CORE_WORDS.trim()).toBe(
       extractConcatString(pyCore, "JSON_MODE_USER_SUFFIX").trim(),
     );
@@ -68,7 +70,9 @@ describe("prompt consistency with python baseline", () => {
       extractConcatString(pyNorm, "JSON_MODE_USER_SUFFIX").trim(),
     );
 
-    expect(SYSTEM_PROMPT_ARTICLE_SENTENCES).toBe(extractTripleQuoted(pySent, "SYSTEM_PROMPT"));
+    expect(SYSTEM_PROMPT_ARTICLE_SENTENCES).toBe(
+      extractTripleQuoted(pySent, "SYSTEM_PROMPT"),
+    );
     expect(JSON_MODE_USER_SUFFIX_ARTICLE_SENTENCES.trim()).toBe(
       extractConcatString(pySent, "JSON_MODE_USER_SUFFIX").trim(),
     );

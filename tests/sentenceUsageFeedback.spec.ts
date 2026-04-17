@@ -34,10 +34,16 @@ describe("applySentenceUsageFeedback", () => {
     const root = mkdtempSync(join(tmpdir(), "memok-suf-"));
     try {
       const dbPath = openMemokSchemaDb(root);
-      const { updatedCount } = applySentenceUsageFeedback(dbPath, [1, 1], { lastEditDate: "2026-06-15" });
+      const { updatedCount } = applySentenceUsageFeedback(dbPath, [1, 1], {
+        lastEditDate: "2026-06-15",
+      });
       expect(updatedCount).toBe(1);
       const db = new Database(dbPath, { readonly: true });
-      const row = db.prepare("SELECT weight, duration, last_edit_date, duration_change_times FROM sentences WHERE id = 1").get() as {
+      const row = db
+        .prepare(
+          "SELECT weight, duration, last_edit_date, duration_change_times FROM sentences WHERE id = 1",
+        )
+        .get() as {
         weight: number;
         duration: number;
         last_edit_date: string;
@@ -62,7 +68,11 @@ describe("applySentenceUsageFeedback", () => {
       applySentenceUsageFeedback(dbPath, [2], { lastEditDate: day });
       applySentenceUsageFeedback(dbPath, [2], { lastEditDate: day });
       const db = new Database(dbPath, { readonly: true });
-      const row3 = db.prepare("SELECT weight, duration, duration_change_times FROM sentences WHERE id = 2").get() as {
+      const row3 = db
+        .prepare(
+          "SELECT weight, duration, duration_change_times FROM sentences WHERE id = 2",
+        )
+        .get() as {
         weight: number;
         duration: number;
         duration_change_times: number;
@@ -74,7 +84,11 @@ describe("applySentenceUsageFeedback", () => {
 
       applySentenceUsageFeedback(dbPath, [2], { lastEditDate: day });
       const db4 = new Database(dbPath, { readonly: true });
-      const row4 = db4.prepare("SELECT weight, duration, duration_change_times FROM sentences WHERE id = 2").get() as {
+      const row4 = db4
+        .prepare(
+          "SELECT weight, duration, duration_change_times FROM sentences WHERE id = 2",
+        )
+        .get() as {
         weight: number;
         duration: number;
         duration_change_times: number;
@@ -98,7 +112,11 @@ describe("applySentenceUsageFeedback", () => {
       applySentenceUsageFeedback(dbPath, [2], { lastEditDate: day });
       applySentenceUsageFeedback(dbPath, [2], { lastEditDate: "2026-06-21" });
       const db = new Database(dbPath, { readonly: true });
-      const row = db.prepare("SELECT weight, duration, duration_change_times, last_edit_date FROM sentences WHERE id = 2").get() as {
+      const row = db
+        .prepare(
+          "SELECT weight, duration, duration_change_times, last_edit_date FROM sentences WHERE id = 2",
+        )
+        .get() as {
         weight: number;
         duration: number;
         duration_change_times: number;

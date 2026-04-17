@@ -1,12 +1,12 @@
-import OpenAI from "openai";
+import type OpenAI from "openai";
 import {
-  scoreSentenceRelevance,
-  type SentenceRelevanceOutput,
-} from "./scoreSentenceRelevance.js";
-import {
-  sampleSentencesForRelevance,
   type SampleSentencesForRelevanceOpts,
+  sampleSentencesForRelevance,
 } from "./sampleSentencesForRelevance.js";
+import {
+  type SentenceRelevanceOutput,
+  scoreSentenceRelevance,
+} from "./scoreSentenceRelevance.js";
 
 export type RunSentenceRelevanceFromDbOpts = SampleSentencesForRelevanceOpts & {
   client?: OpenAI;

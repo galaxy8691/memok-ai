@@ -9,7 +9,9 @@ export const ResultLinkFeedbackInputSchema = z
   })
   .strict();
 
-export type ResultLinkFeedbackInput = z.infer<typeof ResultLinkFeedbackInputSchema>;
+export type ResultLinkFeedbackInput = z.infer<
+  typeof ResultLinkFeedbackInputSchema
+>;
 
 export type ApplyResultLinkFeedbackResult = {
   matchedNormalIds: number;
@@ -58,7 +60,9 @@ export function applyResultLinkFeedback(
                              SET weight = weight + 1,
                                  duration = duration + 1
                              WHERE id IN (${plusSentencePlaceholders})`;
-        updatedSentenceRows = Number(db.prepare(sentenceSql).run(...plusIds).changes);
+        updatedSentenceRows = Number(
+          db.prepare(sentenceSql).run(...plusIds).changes,
+        );
       }
 
       let normalIds: number[] = [];
@@ -72,7 +76,13 @@ export function applyResultLinkFeedback(
              WHERE w.word IN (${placeholders})`,
           )
           .all(...words) as { normal_id: number }[];
-        normalIds = [...new Set(rows.map((r) => r.normal_id).filter((n) => Number.isInteger(n) && n > 0))];
+        normalIds = [
+          ...new Set(
+            rows
+              .map((r) => r.normal_id)
+              .filter((n) => Number.isInteger(n) && n > 0),
+          ),
+        ];
       }
 
       if (normalIds.length === 0) {

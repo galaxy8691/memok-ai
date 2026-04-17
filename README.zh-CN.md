@@ -62,18 +62,22 @@ install-windows.cmd
 脚本行为：
 
 - 自动执行 `npm install` + `npm run build`
-- 自动执行 `openclaw plugins install` 安装插件
-- 自动重启 gateway，默认等待 20 秒后再运行 `openclaw memok setup`
-- setup 完成后再次自动重启 gateway
+- 通过 `openclaw plugins install` 自动安装插件
+- 运行 `openclaw memok setup`；成功后尝试执行 `openclaw gateway restart`（失败时回退为 `openclaw restart`）以使配置生效
 - 安装成功后自动删除源码目录（`~/.openclaw/extensions/memok-ai-src`）
 
 常用安装脚本环境变量：
 
-- `MEMOK_RESTART_WAIT_SECONDS`（默认 `20`）
+- `MEMOK_PLUGINS_INSTALL_TIMEOUT_SECONDS`（可选；为 `openclaw plugins install` 设置超时秒数，`0` 表示不限制）
+- `MEMOK_PLUGINS_INSTALL_NO_PTY=1`（Linux：跳过基于 `script` 的伪终端包装；默认包装异常时使用）
+- `MEMOK_SKIP_GATEWAY_RESTART=1`（跳过脚本末尾的网关重启步骤）
+- `MEMOK_GATEWAY_RESTART_TIMEOUT_SECONDS`（默认 `120`；仅 Bash 安装脚本，在可用时对重启命令使用 `timeout`）
 - `MEMOK_KEEP_SOURCE=1`（调试时保留源码目录）
-- `MEMOK_REPO_URL_CN`（可选自定义仓库镜像，默认 GitHub）
-- `MEMOK_REPO_URL_FALLBACK`（回退仓库，默认 GitHub）
-- `MEMOK_NPM_REGISTRY`（默认 `https://registry.npmmirror.com`）
+- `MEMOK_REPO_URL_CN`（可选自定义仓库镜像，默认 GitHub；国内安装脚本）
+- `MEMOK_REPO_URL_FALLBACK`（回退仓库，默认 GitHub；国内安装脚本）
+- `MEMOK_NPM_REGISTRY`（默认 `https://registry.npmmirror.com`；国内安装脚本）
+
+若 `openclaw plugins install` 已显示成功但进程迟迟不退出（安装脚本停在下一行提示之前），多为 OpenClaw CLI 未结束；在 Linux 上安装脚本会在 `script` 下运行该命令以减轻此问题。也可 `Ctrl+C` 后若插件文件已就绪，直接执行 `openclaw memok setup`。避免同一插件注册两次（例如同时配置 `memok-ai` 与 `memok-ai-src` 路径）——在 `openclaw.json` 中删除重复项可消除「duplicate plugin id」警告。
 
 如果 setup 报错 `plugins.allow excludes "memok"`，请在 `~/.openclaw/openclaw.json` 的 `plugins.allow` 增加 `"memok"`，然后重试：
 
@@ -95,7 +99,7 @@ openclaw memok setup
 - 是否独占 memory 槽位（默认不独占）
 - dreaming 定时（dailyAt / cron / timezone）
 
-如果你使用的是安装脚本，重启会自动完成。
+若在安装脚本之外修改插件或配置，请自行重启网关以便运行中的进程加载新配置（例如 `openclaw gateway restart`）。
 
 ## 快速示例（CLI）
 

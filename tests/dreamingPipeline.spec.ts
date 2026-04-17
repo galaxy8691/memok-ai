@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { runDreamingPipelineFromDb } from "../src/dreaming-pipeline/runDreamingPipelineFromDb.js";
 import type { PredreamDecayResult } from "../src/dreaming-pipeline/predream-pipeline/runPredreamDecayFromDb.js";
+import { runDreamingPipelineFromDb } from "../src/dreaming-pipeline/runDreamingPipelineFromDb.js";
 import type { StoryWordSentencePipelineResult } from "../src/dreaming-pipeline/story-word-sentence-pipeline/runStoryWordSentencePipelineFromDb.js";
 
 describe("runDreamingPipelineFromDb", () => {

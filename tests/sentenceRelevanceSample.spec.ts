@@ -8,7 +8,9 @@ import { sampleSentencesForRelevance } from "../src/dreaming-pipeline/story-word
 function mkSentencesDb(dir: string, n: number): string {
   const dbPath = join(dir, "s.sqlite");
   const db = new Database(dbPath);
-  db.exec("CREATE TABLE sentences (id INTEGER PRIMARY KEY AUTOINCREMENT, sentence TEXT);");
+  db.exec(
+    "CREATE TABLE sentences (id INTEGER PRIMARY KEY AUTOINCREMENT, sentence TEXT);",
+  );
   const ins = db.prepare("INSERT INTO sentences (sentence) VALUES (?)");
   for (let i = 0; i < n; i += 1) {
     ins.run(`s-${i}`);
@@ -22,7 +24,9 @@ describe("sampleSentencesForRelevance", () => {
     const root = mkdtempSync(join(tmpdir(), "memok-rel-sample-"));
     try {
       const dbPath = mkSentencesDb(root, 0);
-      expect(() => sampleSentencesForRelevance(dbPath)).toThrow(/sentences 表为空/);
+      expect(() => sampleSentencesForRelevance(dbPath)).toThrow(
+        /sentences 表为空/,
+      );
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

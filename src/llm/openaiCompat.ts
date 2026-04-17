@@ -1,10 +1,10 @@
-import { config as dotenvConfig } from "dotenv";
-import OpenAI from "openai";
-import { zodResponseFormat } from "openai/helpers/zod";
 import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { z } from "zod";
+import { config as dotenvConfig } from "dotenv";
+import type OpenAI from "openai";
+import { zodResponseFormat } from "openai/helpers/zod";
+import type { z } from "zod";
 
 const ENV_SKIP_STRUCTURED_PARSE = "MEMOK_SKIP_LLM_STRUCTURED_PARSE";
 const ENV_LLM_MAX_WORKERS = "MEMOK_LLM_MAX_WORKERS";
@@ -46,7 +46,9 @@ export function llmMaxWorkers(): number {
 }
 
 export function preferJsonObjectOnly(): boolean {
-  const flag = (process.env[ENV_SKIP_STRUCTURED_PARSE] ?? "").trim().toLowerCase();
+  const flag = (process.env[ENV_SKIP_STRUCTURED_PARSE] ?? "")
+    .trim()
+    .toLowerCase();
   if (["1", "true", "yes", "on"].includes(flag)) {
     return true;
   }
@@ -60,13 +62,24 @@ export function isDeepseekCompatibleBaseUrl(): boolean {
 }
 
 function isStructuredResponseUnsupported(err: unknown): boolean {
-  const anyErr = err as { status?: number; statusCode?: number; message?: string; error?: { message?: string } };
+  const anyErr = err as {
+    status?: number;
+    statusCode?: number;
+    message?: string;
+    error?: { message?: string };
+  };
   const status = anyErr.statusCode ?? anyErr.status;
   if (status !== 400) {
     return false;
   }
   const blob = JSON.stringify(err).toLowerCase();
-  const signals = ["response_format", "json_schema", "structured output", "structured_output", "unavailable"];
+  const signals = [
+    "response_format",
+    "json_schema",
+    "structured output",
+    "structured_output",
+    "unavailable",
+  ];
   if (signals.some((s) => blob.includes(s))) {
     return true;
   }
@@ -124,7 +137,9 @@ type RunParseOrJsonParams<T> = {
   maxTokens?: number;
 };
 
-export async function runParseOrJson<T>(params: RunParseOrJsonParams<T>): Promise<T> {
+export async function runParseOrJson<T>(
+  params: RunParseOrJsonParams<T>,
+): Promise<T> {
   const {
     client,
     model,
@@ -161,7 +176,9 @@ export async function runParseOrJson<T>(params: RunParseOrJsonParams<T>): Promis
       parsedJson = JSON.parse(raw);
     } catch (error) {
       const debug = buildJsonParseDebug(raw, error);
-      throw new Error(`LLM returned invalid JSON in json_object mode (${responseName}/${model}): ${debug}`);
+      throw new Error(
+        `LLM returned invalid JSON in json_object mode (${responseName}/${model}): ${debug}`,
+      );
     }
     return schema.parse(parsedJson);
   };

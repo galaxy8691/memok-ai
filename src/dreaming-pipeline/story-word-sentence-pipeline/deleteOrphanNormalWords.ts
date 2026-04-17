@@ -9,7 +9,9 @@ export type DeleteOrphanNormalWordsResult = {
  * 删除「无 word_to_normal_link 且无 sentence_to_normal_link」的 normal_words。
  * 仅有句子边（仅有 sentence_to_normal_link）或仍有词锚定（word_to_normal_link）的均保留。
  */
-export function deleteOrphanNormalWords(dbPath: string): DeleteOrphanNormalWordsResult {
+export function deleteOrphanNormalWords(
+  dbPath: string,
+): DeleteOrphanNormalWordsResult {
   const db = new Database(dbPath);
   try {
     db.pragma("foreign_keys = ON");
@@ -22,12 +24,16 @@ export function deleteOrphanNormalWords(dbPath: string): DeleteOrphanNormalWords
              AND NOT EXISTS (SELECT 1 FROM sentence_to_normal_link s WHERE s.normal_id = nw.id)`,
         )
         .all() as { id: number }[];
-      const ids = rows.map((r) => r.id).filter((id) => Number.isInteger(id) && id > 0);
+      const ids = rows
+        .map((r) => r.id)
+        .filter((id) => Number.isInteger(id) && id > 0);
       if (ids.length === 0) {
         return { count: 0, ids: [] };
       }
       const placeholders = ids.map(() => "?").join(", ");
-      const del = db.prepare(`DELETE FROM normal_words WHERE id IN (${placeholders})`);
+      const del = db.prepare(
+        `DELETE FROM normal_words WHERE id IN (${placeholders})`,
+      );
       del.run(...ids);
       return { count: ids.length, ids };
     });

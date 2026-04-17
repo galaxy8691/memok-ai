@@ -1,11 +1,11 @@
 import { z } from "zod";
 import {
-  NormalWordRelevanceOutputSchema,
   type NormalWordRelevanceOutput,
+  NormalWordRelevanceOutputSchema,
 } from "./scoreNormalWordRelevance.js";
 import {
-  SentenceRelevanceOutputSchema,
   type SentenceRelevanceOutput,
+  SentenceRelevanceOutputSchema,
 } from "./scoreSentenceRelevance.js";
 
 export const RelevanceBucketsSchema = z
@@ -28,7 +28,9 @@ export const NormalWordRelevanceBucketsSchema = z
   })
   .strict();
 
-export type NormalWordRelevanceBuckets = z.infer<typeof NormalWordRelevanceBucketsSchema>;
+export type NormalWordRelevanceBuckets = z.infer<
+  typeof NormalWordRelevanceBucketsSchema
+>;
 
 /**
  * 把 normal_word 相关性按阈值分三档（id 为 `normal_words.id`）：
@@ -36,7 +38,9 @@ export type NormalWordRelevanceBuckets = z.infer<typeof NormalWordRelevanceBucke
  * - `id_ge_40_lt_60`: 40 <= score < 60
  * - `id_lt_40`: score < 40
  */
-export function buildNormalWordRelevanceBuckets(relevance: NormalWordRelevanceOutput): NormalWordRelevanceBuckets {
+export function buildNormalWordRelevanceBuckets(
+  relevance: NormalWordRelevanceOutput,
+): NormalWordRelevanceBuckets {
   const parsed = NormalWordRelevanceOutputSchema.parse(relevance);
   const id_ge_60: number[] = [];
   const id_ge_40_lt_60: number[] = [];

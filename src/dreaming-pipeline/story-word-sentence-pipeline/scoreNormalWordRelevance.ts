@@ -17,25 +17,40 @@ const MAX_ITEMS_PER_BATCH = 50;
 export const NormalWordRelevanceInputSchema = z
   .object({
     story: z.string().min(1),
-    normalWords: z.array(z.object({ id: z.number().int(), word: z.string() }).strict()),
+    normalWords: z.array(
+      z.object({ id: z.number().int(), word: z.string() }).strict(),
+    ),
   })
   .strict();
 
 export const NormalWordRelevanceOutputSchema = z
   .object({
     // 不用 .strict()：部分模型会在每项里回显 word，strip 掉即可
-    normalWords: z.array(z.object({ id: z.number().int(), score: z.number().int().min(0).max(100) })),
+    normalWords: z.array(
+      z.object({
+        id: z.number().int(),
+        score: z.number().int().min(0).max(100),
+      }),
+    ),
   })
   .strict();
 
-export type NormalWordRelevanceInput = z.infer<typeof NormalWordRelevanceInputSchema>;
-export type NormalWordRelevanceOutput = z.infer<typeof NormalWordRelevanceOutputSchema>;
+export type NormalWordRelevanceInput = z.infer<
+  typeof NormalWordRelevanceInputSchema
+>;
+export type NormalWordRelevanceOutput = z.infer<
+  typeof NormalWordRelevanceOutputSchema
+>;
 
 function resolveModel(explicit?: string): string {
   if (explicit?.trim()) {
     return explicit.trim();
   }
-  for (const key of [ENV_NORMAL_WORD_RELEVANCE_MODEL, ENV_SENTENCE_RELEVANCE_MODEL, ENV_MEMOK_LLM_MODEL]) {
+  for (const key of [
+    ENV_NORMAL_WORD_RELEVANCE_MODEL,
+    ENV_SENTENCE_RELEVANCE_MODEL,
+    ENV_MEMOK_LLM_MODEL,
+  ]) {
     const v = (process.env[key] ?? "").trim();
     if (v) {
       return v;
@@ -44,7 +59,10 @@ function resolveModel(explicit?: string): string {
   return DEFAULT_MODEL;
 }
 
-function effectiveOutputBudget(forDeepseek: boolean, explicit?: number): number {
+function effectiveOutputBudget(
+  forDeepseek: boolean,
+  explicit?: number,
+): number {
   const cap = explicit ?? DEFAULT_MAX_OUTPUT;
   if (forDeepseek) {
     return Math.max(1, Math.min(cap, DEEPSEEK_CHAT_MAX_TOKENS_CAP));
@@ -113,11 +131,16 @@ async function scoreOneBatch(
         role: "system" as const,
         content: `${SYSTEM_PROMPT_NORMAL_WORD_RELEVANCE}\n\n你必须只输出一个合法 JSON 对象。`,
       },
-      { role: "user" as const, content: `${userBody}\n\n只输出 JSON，不要代码围栏。` },
+      {
+        role: "user" as const,
+        content: `${userBody}\n\n只输出 JSON，不要代码围栏。`,
+      },
     ],
     schema: NormalWordRelevanceOutputSchema,
     responseName: "NormalWordRelevanceOutput",
-    ...(opts.deepseek ? { maxTokens: opts.budget } : { maxCompletionTokens: opts.budget }),
+    ...(opts.deepseek
+      ? { maxTokens: opts.budget }
+      : { maxCompletionTokens: opts.budget }),
   };
 
   let lastError: unknown;
@@ -152,14 +175,25 @@ export async function scoreNormalWordRelevance(
   }
 
   const merged: NormalWordRelevanceOutput["normalWords"] = [];
-  for (let i = 0; i < parsedInput.normalWords.length; i += MAX_ITEMS_PER_BATCH) {
+  for (
+    let i = 0;
+    i < parsedInput.normalWords.length;
+    i += MAX_ITEMS_PER_BATCH
+  ) {
     const chunkInput: NormalWordRelevanceInput = {
       story: parsedInput.story,
       normalWords: parsedInput.normalWords.slice(i, i + MAX_ITEMS_PER_BATCH),
     };
-    const chunkOut = await scoreOneBatch(chunkInput, { client, model, budget, deepseek });
+    const chunkOut = await scoreOneBatch(chunkInput, {
+      client,
+      model,
+      budget,
+      deepseek,
+    });
     merged.push(...chunkOut.normalWords);
   }
 
-  return validateNormalWordRelevanceOutput(parsedInput, { normalWords: merged });
+  return validateNormalWordRelevanceOutput(parsedInput, {
+    normalWords: merged,
+  });
 }

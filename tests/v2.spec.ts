@@ -5,7 +5,10 @@ import {
   combineArticleSentenceCoreV2,
   dumpArticleSentenceCoreCombineTupleV2Json,
 } from "../src/article-word-pipeline/v2/articleSentenceCoreCombine.js";
-import { parseAwpV2TupleJson, importAwpV2Tuple } from "../src/sqlite/awpV2Import.js";
+import {
+  importAwpV2Tuple,
+  parseAwpV2TupleJson,
+} from "../src/sqlite/awpV2Import.js";
 
 describe("v2 pure logic", () => {
   it("combine returns tuple shape", () => {
@@ -23,18 +26,37 @@ describe("v2 pure logic", () => {
     );
     expect(combined.sentence_core).toHaveLength(2);
     expect(combined.sentence_core[0].core_words).toEqual(["x", "y"]);
-    const raw = dumpArticleSentenceCoreCombineTupleV2Json(combined, normalized, null);
+    const raw = dumpArticleSentenceCoreCombineTupleV2Json(
+      combined,
+      normalized,
+      null,
+    );
     const tuple = parseAwpV2TupleJson(raw);
     expect(tuple[0].sentence_core[1].sentence).toBe("b");
   });
 
   it("canonicalize new_text keeps Python-compatible rules", () => {
-    expect(_internalArticleCoreWordsNormalize.canonicalizeNewText("UTC+02:00", "UTC+02:00")).toBe("时间");
     expect(
-      _internalArticleCoreWordsNormalize.canonicalizeNewText("2017年12月28日", "2017年12月28日"),
+      _internalArticleCoreWordsNormalize.canonicalizeNewText(
+        "UTC+02:00",
+        "UTC+02:00",
+      ),
+    ).toBe("时间");
+    expect(
+      _internalArticleCoreWordsNormalize.canonicalizeNewText(
+        "2017年12月28日",
+        "2017年12月28日",
+      ),
     ).toBe("日期");
-    expect(_internalArticleCoreWordsNormalize.canonicalizeNewText("95%", "95%")).toBe("比例");
-    expect(_internalArticleCoreWordsNormalize.canonicalizeNewText("技巧★★★", "技巧★★★")).toBe("技巧");
+    expect(
+      _internalArticleCoreWordsNormalize.canonicalizeNewText("95%", "95%"),
+    ).toBe("比例");
+    expect(
+      _internalArticleCoreWordsNormalize.canonicalizeNewText(
+        "技巧★★★",
+        "技巧★★★",
+      ),
+    ).toBe("技巧");
   });
 
   it("imports tuple into sqlite", () => {
@@ -56,8 +78,12 @@ describe("v2 pure logic", () => {
       },
       { today: "2026-04-14" },
     );
-    const words = db.prepare("SELECT COUNT(*) as c FROM words").get() as { c: number };
-    const links = db.prepare("SELECT COUNT(*) as c FROM sentence_to_normal_link").get() as { c: number };
+    const words = db.prepare("SELECT COUNT(*) as c FROM words").get() as {
+      c: number;
+    };
+    const links = db
+      .prepare("SELECT COUNT(*) as c FROM sentence_to_normal_link")
+      .get() as { c: number };
     expect(words.c).toBe(1);
     expect(links.c).toBe(1);
     db.close();

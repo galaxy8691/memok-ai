@@ -24,8 +24,12 @@ function makeDb(root: string): string {
   db.prepare(
     "INSERT INTO normal_words (id, word) VALUES (1,'N1'),(2,'N2'),(3,'N3'),(4,'N4')",
   ).run();
-  db.prepare("INSERT INTO sentence_to_normal_link (normal_id, sentence_id, weight) VALUES (2, 1, 1)").run();
-  db.prepare("INSERT INTO word_to_normal_link (word_id, normal_id, weight) VALUES (1, 3, 1)").run();
+  db.prepare(
+    "INSERT INTO sentence_to_normal_link (normal_id, sentence_id, weight) VALUES (2, 1, 1)",
+  ).run();
+  db.prepare(
+    "INSERT INTO word_to_normal_link (word_id, normal_id, weight) VALUES (1, 3, 1)",
+  ).run();
   db.close();
   return dbPath;
 }

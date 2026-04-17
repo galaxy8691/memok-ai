@@ -1,5 +1,5 @@
-import { createInterface } from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
+import { createInterface } from "node:readline/promises";
 
 export type MemokLlmProvider =
   | "inherit"
@@ -22,7 +22,10 @@ const PROVIDERS: MemokLlmProvider[] = [
   "custom",
 ];
 
-const PRESET_BY_PROVIDER: Record<Exclude<MemokLlmProvider, "inherit" | "custom">, string[]> = {
+const PRESET_BY_PROVIDER: Record<
+  Exclude<MemokLlmProvider, "inherit" | "custom">,
+  string[]
+> = {
   openai: ["gpt-4o-mini", "gpt-4.1-mini", "gpt-4.1-nano", "gpt-4o"],
   deepseek: ["deepseek-chat", "deepseek-v3"],
   openrouter: ["openai/gpt-4o-mini", "openai/gpt-4.1-mini"],
@@ -66,7 +69,9 @@ async function pickByNumber(
 ): Promise<number> {
   while (true) {
     const options = rows.map((x, i) => `${i + 1}) ${x}`).join("\n");
-    const raw = await ask(`${title}\n${options}\n选择 [默认 ${defaultIndex + 1}]: `);
+    const raw = await ask(
+      `${title}\n${options}\n选择 [默认 ${defaultIndex + 1}]: `,
+    );
     const t = raw.trim();
     if (!t) return defaultIndex;
     const n = Number.parseInt(t, 10);
@@ -108,25 +113,35 @@ export async function promptMemokSetupAnswers(): Promise<MemokSetupAnswers> {
     const llmApiKey = clean(await ask("可选：API Key（留空则沿用环境变量）: "));
     const llmBaseUrl =
       llmProvider === "custom"
-        ? clean(await ask("custom 模式请填写 Base URL（如 https://api.xxx.com/v1）: "))
+        ? clean(
+            await ask(
+              "custom 模式请填写 Base URL（如 https://api.xxx.com/v1）: ",
+            ),
+          )
         : undefined;
     const memorySlotExclusive = toYes(
       await ask("是否让 memok-ai 独占 memory 槽位？(y/N，默认不独占): "),
       false,
     );
 
-    const dreamingOn = toYes(await ask("是否启用 dreaming 定时任务？(Y/n): "), true);
+    const dreamingOn = toYes(
+      await ask("是否启用 dreaming 定时任务？(Y/n): "),
+      true,
+    );
     let dreamingPipelineDailyAt: string | undefined;
     let dreamingPipelineTimezone: string | undefined;
     if (dreamingOn) {
       while (true) {
-        const raw = (await ask("每日触发时间 HH:mm [默认 03:00]: ")).trim() || "03:00";
+        const raw =
+          (await ask("每日触发时间 HH:mm [默认 03:00]: ")).trim() || "03:00";
         if (isValidDailyAt(raw)) {
           dreamingPipelineDailyAt = raw;
           break;
         }
       }
-      dreamingPipelineTimezone = clean(await ask("可选：时区（如 Asia/Shanghai，留空使用系统时区）: "));
+      dreamingPipelineTimezone = clean(
+        await ask("可选：时区（如 Asia/Shanghai，留空使用系统时区）: "),
+      );
     }
 
     if (llmProvider === "custom" && !llmBaseUrl) {
@@ -155,9 +170,11 @@ export function mergeMemokSetupToConfig(
 ): Record<string, unknown> {
   const root = cfg ?? {};
   const plugins = (root.plugins as Record<string, unknown> | undefined) ?? {};
-  const entries = (plugins.entries as Record<string, unknown> | undefined) ?? {};
+  const entries =
+    (plugins.entries as Record<string, unknown> | undefined) ?? {};
   const slots = (plugins.slots as Record<string, unknown> | undefined) ?? {};
-  const curEntry = (entries["memok-ai"] as Record<string, unknown> | undefined) ?? {};
+  const curEntry =
+    (entries["memok-ai"] as Record<string, unknown> | undefined) ?? {};
   const curCfg = (curEntry.config as Record<string, unknown> | undefined) ?? {};
 
   const nextPluginCfg: Record<string, unknown> = {

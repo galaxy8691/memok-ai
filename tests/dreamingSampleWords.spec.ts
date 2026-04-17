@@ -8,7 +8,9 @@ import { sampleWordStrings } from "../src/dreaming-pipeline/story-word-sentence-
 function mkWordsDb(dir: string, words: string[]): string {
   const dbPath = join(dir, "w.sqlite");
   const db = new Database(dbPath);
-  db.exec("CREATE TABLE words (id INTEGER PRIMARY KEY AUTOINCREMENT, word TEXT UNIQUE);");
+  db.exec(
+    "CREATE TABLE words (id INTEGER PRIMARY KEY AUTOINCREMENT, word TEXT UNIQUE);",
+  );
   const ins = db.prepare("INSERT INTO words (word) VALUES (?)");
   for (const w of words) {
     ins.run(w);
@@ -23,7 +25,9 @@ describe("sampleWordStrings", () => {
     try {
       const dbPath = join(root, "empty.sqlite");
       const db = new Database(dbPath);
-      db.exec("CREATE TABLE words (id INTEGER PRIMARY KEY AUTOINCREMENT, word TEXT UNIQUE);");
+      db.exec(
+        "CREATE TABLE words (id INTEGER PRIMARY KEY AUTOINCREMENT, word TEXT UNIQUE);",
+      );
       db.close();
       expect(() => sampleWordStrings(dbPath)).toThrow(/words 表为空/);
     } finally {
