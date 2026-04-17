@@ -35,15 +35,29 @@ npm run dev -- --help
 
 ### 2）作为 OpenClaw 插件使用
 
-安装插件：
+推荐脚本安装：
 
 ```bash
-openclaw plugins install /path/to/memok-ai
+# Linux / macOS
+bash <(curl -fsSL https://raw.githubusercontent.com/galaxy8691/memok-ai/main/scripts/install-linux-macos.sh)
 ```
 
-运行交互式向导：
+```powershell
+# Windows PowerShell
+irm https://raw.githubusercontent.com/galaxy8691/memok-ai/main/scripts/install-windows.ps1 | iex
+```
+
+```cmd
+:: Windows CMD（先下载再运行）
+curl -L -o install-windows.cmd https://raw.githubusercontent.com/galaxy8691/memok-ai/main/scripts/install-windows.cmd
+install-windows.cmd
+```
+
+手动安装备用方案：
 
 ```bash
+git clone https://github.com/galaxy8691/memok-ai.git
+openclaw plugins install ./memok-ai
 openclaw memok setup
 ```
 

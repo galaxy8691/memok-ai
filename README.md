@@ -36,17 +36,29 @@ npm run dev -- --help
 
 ### 2) Use as OpenClaw plugin
 
-Install plugin:
+Install via script (recommended):
 
 ```bash
-openclaw plugins install github:galaxy8691/memok-ai
-# or install from local path
-# openclaw plugins install /path/to/memok-ai
+# Linux / macOS
+bash <(curl -fsSL https://raw.githubusercontent.com/galaxy8691/memok-ai/main/scripts/install-linux-macos.sh)
 ```
 
-Run interactive setup:
+```powershell
+# Windows PowerShell
+irm https://raw.githubusercontent.com/galaxy8691/memok-ai/main/scripts/install-windows.ps1 | iex
+```
+
+```cmd
+:: Windows CMD (download then run)
+curl -L -o install-windows.cmd https://raw.githubusercontent.com/galaxy8691/memok-ai/main/scripts/install-windows.cmd
+install-windows.cmd
+```
+
+Manual fallback:
 
 ```bash
+git clone https://github.com/galaxy8691/memok-ai.git
+openclaw plugins install ./memok-ai
 openclaw memok setup
 ```
 
