@@ -53,6 +53,19 @@ curl -L -o install-windows.cmd https://raw.githubusercontent.com/galaxy8691/memo
 install-windows.cmd
 ```
 
+脚本行为：
+
+- 自动执行 `npm install` + `npm run build`
+- 自动执行 `openclaw plugins install` 安装插件
+- 自动重启 gateway，默认等待 20 秒后再运行 `openclaw memok setup`
+- setup 完成后再次自动重启 gateway
+- 安装成功后自动删除源码目录（`~/.openclaw/extensions/memok-ai-src`）
+
+常用安装脚本环境变量：
+
+- `MEMOK_RESTART_WAIT_SECONDS`（默认 `20`）
+- `MEMOK_KEEP_SOURCE=1`（调试时保留源码目录）
+
 如果 setup 报错 `plugins.allow excludes "memok"`，请在 `~/.openclaw/openclaw.json` 的 `plugins.allow` 增加 `"memok"`，然后重试：
 
 ```bash
@@ -73,7 +86,7 @@ openclaw memok setup
 - 是否独占 memory 槽位（默认不独占）
 - dreaming 定时（dailyAt / cron / timezone）
 
-配置完成后请重启 gateway。
+如果你使用的是安装脚本，重启会自动完成。
 
 ## 快速示例（CLI）
 

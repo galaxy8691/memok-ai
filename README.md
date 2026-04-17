@@ -54,6 +54,19 @@ curl -L -o install-windows.cmd https://raw.githubusercontent.com/galaxy8691/memo
 install-windows.cmd
 ```
 
+Installer behavior:
+
+- Auto runs `npm install` + `npm run build`
+- Auto installs plugin via `openclaw plugins install`
+- Auto restarts gateway, waits 20s by default, then runs `openclaw memok setup`
+- Auto restarts gateway again after setup
+- Auto removes install source directory (`~/.openclaw/extensions/memok-ai-src`) after success
+
+Useful installer env vars:
+
+- `MEMOK_RESTART_WAIT_SECONDS` (default `20`)
+- `MEMOK_KEEP_SOURCE=1` (keep source directory for debugging)
+
 If setup fails with `plugins.allow excludes "memok"`, add `"memok"` to `~/.openclaw/openclaw.json` under `plugins.allow`, then rerun:
 
 ```bash
@@ -74,7 +87,7 @@ The setup wizard lets you configure:
 - Optional memory-slot exclusivity (default: non-exclusive)
 - Dreaming schedule (`dailyAt` / cron / timezone)
 
-After setup, restart your gateway.
+If you installed via script, restart is already handled automatically.
 
 ## Quick CLI Example
 

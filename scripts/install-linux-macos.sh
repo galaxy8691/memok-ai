@@ -15,6 +15,43 @@ need_cmd git
 need_cmd openclaw
 need_cmd npm
 
+restart_gateway() {
+  local reason="$1"
+  local wait_seconds="${MEMOK_RESTART_WAIT_SECONDS:-20}"
+  echo "[memok-ai installer] restarting OpenClaw gateway (${reason})..."
+  if openclaw restart; then
+    echo "[memok-ai installer] waiting ${wait_seconds}s for gateway to come back..."
+    sleep "${wait_seconds}"
+  else
+    echo "[memok-ai installer] warning: openclaw restart failed, continuing."
+  fi
+}
+
+wait_memok_command_ready() {
+  local max_attempts="${MEMOK_SETUP_WAIT_ATTEMPTS:-10}"
+  local delay_seconds="${MEMOK_SETUP_WAIT_INTERVAL_SECONDS:-2}"
+  local i=1
+  while [ "$i" -le "$max_attempts" ]; do
+    if openclaw memok --help >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep "${delay_seconds}"
+    i=$((i + 1))
+  done
+  return 1
+}
+
+cleanup_source_dir() {
+  if [ "${MEMOK_KEEP_SOURCE:-0}" = "1" ]; then
+    echo "[memok-ai installer] keeping source dir: $TARGET_DIR (MEMOK_KEEP_SOURCE=1)"
+    return
+  fi
+  if [ -d "$TARGET_DIR" ]; then
+    rm -rf "$TARGET_DIR"
+    echo "[memok-ai installer] removed source dir: $TARGET_DIR"
+  fi
+}
+
 echo "[memok-ai installer] cloning/updating source..."
 if [ -d "$TARGET_DIR/.git" ]; then
   git -C "$TARGET_DIR" fetch --depth=1 origin main
@@ -32,6 +69,11 @@ npm --prefix "$TARGET_DIR" run build
 echo "[memok-ai installer] installing plugin..."
 openclaw plugins install "$TARGET_DIR"
 
+restart_gateway "load newly installed plugin"
+if ! wait_memok_command_ready; then
+  echo "[memok-ai installer] warning: memok CLI is not ready yet; setup may fail."
+fi
+
 echo "[memok-ai installer] running interactive setup..."
 set +e
 SETUP_OUTPUT="$(openclaw memok setup 2>&1)"
@@ -40,7 +82,10 @@ set -e
 printf '%s\n' "$SETUP_OUTPUT"
 
 if [ $SETUP_STATUS -ne 0 ]; then
-  if printf '%s' "$SETUP_OUTPUT" | grep -q 'plugins\.allow excludes "memok"'; then
+  if printf '%s' "$SETUP_OUTPUT" | grep -q "unknown command 'memok'"; then
+    echo "[memok-ai installer] memok command unavailable. Your OpenClaw version may be too old or gateway is still restarting."
+    echo "[memok-ai installer] please upgrade OpenClaw (>= 2026.3.24), restart gateway, then run: openclaw memok setup"
+  elif printf '%s' "$SETUP_OUTPUT" | grep -q 'plugins\.allow excludes "memok"'; then
     echo "[memok-ai installer] setup blocked by plugins.allow."
     echo "[memok-ai installer] add \"memok\" to ~/.openclaw/openclaw.json -> plugins.allow, then run: openclaw memok setup"
   else
@@ -49,5 +94,8 @@ if [ $SETUP_STATUS -ne 0 ]; then
   exit $SETUP_STATUS
 fi
 
+restart_gateway "apply setup config"
+cleanup_source_dir
+
 echo
-echo "[memok-ai installer] done. Please restart OpenClaw gateway."
+echo "[memok-ai installer] done."
