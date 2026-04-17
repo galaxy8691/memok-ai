@@ -78,22 +78,18 @@ if ! wait_memok_command_ready; then
 fi
 
 echo "[memok-ai installer] running interactive setup..."
+# Do NOT capture stdout/stderr: `openclaw memok setup` uses readline prompts; command substitution
+# would hide all questions and look like a hang while still waiting for stdin.
 set +e
-SETUP_OUTPUT="$(openclaw memok setup 2>&1)"
+openclaw memok setup
 SETUP_STATUS=$?
 set -e
-printf '%s\n' "$SETUP_OUTPUT"
 
 if [ $SETUP_STATUS -ne 0 ]; then
-  if printf '%s' "$SETUP_OUTPUT" | grep -q "unknown command 'memok'"; then
-    echo "[memok-ai installer] memok command unavailable. Your OpenClaw version may be too old or gateway is still restarting."
-    echo "[memok-ai installer] please upgrade OpenClaw (>= 2026.3.24), restart gateway, then run: openclaw memok setup"
-  elif printf '%s' "$SETUP_OUTPUT" | grep -q 'plugins\.allow excludes "memok"'; then
-    echo "[memok-ai installer] setup blocked by plugins.allow."
-    echo "[memok-ai installer] add \"memok\" to ~/.openclaw/openclaw.json -> plugins.allow, then run: openclaw memok setup"
-  else
-    echo "[memok-ai installer] setup command failed. Please run manually: openclaw memok setup"
-  fi
+  echo "[memok-ai installer] setup exited with status ${SETUP_STATUS}."
+  echo "[memok-ai installer] hints: upgrade OpenClaw (>= 2026.3.24) if 'memok' is unknown;"
+  echo "[memok-ai installer] add \"memok\" to plugins.allow in ~/.openclaw/openclaw.json if blocked."
+  echo "[memok-ai installer] run manually for full output: openclaw memok setup"
   exit $SETUP_STATUS
 fi
 
