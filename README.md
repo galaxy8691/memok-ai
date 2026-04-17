@@ -1,6 +1,6 @@
 # memok-ai
 
-English | [简体中文](./README.zh-CN.md)
+English | [简体中文](./README.zh-CN.md) · Website: [memok-ai.com](https://www.memok-ai.com/)
 
 `memok-ai` is a Node.js + TypeScript memory pipeline for long text and conversations.
 It extracts structured memory units with OpenAI-compatible LLM APIs and stores them in SQLite for recall, reinforcement, and dreaming workflows.

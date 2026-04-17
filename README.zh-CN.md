@@ -1,6 +1,6 @@
 # memok-ai
 
-[English](./README.md) | 简体中文
+[English](./README.md) | 简体中文 · 官网：[memok-ai.com](https://www.memok-ai.com/)
 
 `memok-ai` 是一个基于 Node.js + TypeScript 的记忆流水线项目，用 OpenAI 兼容接口提取长文/对话记忆并写入 SQLite，支持召回、强化和 dreaming 流程。
 
