@@ -57,7 +57,7 @@ program
 
 program
   .command("article-core-words")
-  .argument("<article>", "文章文件路径")
+  .argument("<article>", "Path to article text file")
   .action(async (articlePath: string) => {
     const text = readUtf8(articlePath);
     const out = await analyzeArticleCoreWords(text);
@@ -66,7 +66,7 @@ program
 
 program
   .command("article-core-words-normalize")
-  .requiredOption("--from-json <path>", "core_words json 文件")
+  .requiredOption("--from-json <path>", "Path to core_words JSON file")
   .action(async (opts: { fromJson: string }) => {
     const raw = readUtf8(opts.fromJson);
     let data: z.infer<typeof ArticleCoreWordsDataSchema>;
@@ -75,7 +75,7 @@ program
     } catch (e) {
       exitValidation(
         e,
-        "无法解析 ArticleCoreWordsData（须仅含 core_words 字符串数组）",
+        "Failed to parse ArticleCoreWordsData (expected core_words string array)",
       );
     }
     const out = await normalizeArticleCoreWordsSynonyms(data);
@@ -84,7 +84,7 @@ program
 
 program
   .command("article-sentences")
-  .argument("<article>", "文章文件路径")
+  .argument("<article>", "Path to article text file")
   .action(async (articlePath: string) => {
     const text = readUtf8(articlePath);
     const out = await analyzeArticleMemorySentences(text);
@@ -93,10 +93,10 @@ program
 
 program
   .command("article-sentence-core-combine")
-  .requiredOption("--from-sentences-json <path>", "article-sentences JSON")
+  .requiredOption("--from-sentences-json <path>", "article-sentences JSON path")
   .requiredOption(
     "--from-normalized-json <path>",
-    "article-core-words-normalize JSON",
+    "article-core-words-normalize JSON path",
   )
   .action((opts: { fromSentencesJson: string; fromNormalizedJson: string }) => {
     let sentences: z.infer<typeof ArticleMemorySentencesDataSchema>;
@@ -108,7 +108,7 @@ program
     } catch (e) {
       exitValidation(
         e,
-        "无法解析 ArticleMemorySentencesData（须仅含 sentences: [{sentence}]）",
+        "Failed to parse ArticleMemorySentencesData (expected sentences: [{sentence}])",
       );
     }
     try {
@@ -118,7 +118,7 @@ program
     } catch (e) {
       exitValidation(
         e,
-        "无法解析 ArticleCoreWordsNomalizedData（须仅含 nomalized 数组）",
+        "Failed to parse ArticleCoreWordsNomalizedData (expected nomalized array)",
       );
     }
     const [combined, normOut] = combineArticleSentenceCoreV2(
@@ -132,7 +132,7 @@ program
 
 program
   .command("article-word-pipeline")
-  .argument("<article>", "文章文件路径")
+  .argument("<article>", "Path to article text file")
   .action(async (articlePath: string) => {
     const text = readUtf8(articlePath);
     const [combined, normalized] = await articleWordPipelineV2(text);
@@ -144,13 +144,13 @@ program
 program
   .command("extract-memory-sentences")
   .description(
-    "从 words 随机抽样→关联 sentences；输出单一 sentences：先短期全量，后非短期加权抽样",
+    "Sample words → linked sentences; output sentences JSON (short-term pool in full, then weighted long-term sample)",
   )
-  .requiredOption("--db <path>", "sqlite 数据库路径")
-  .option("--fraction <n>", "对 words 表的抽样比例（默认 0.2）")
+  .requiredOption("--db <path>", "SQLite database path")
+  .option("--fraction <n>", "Fraction of words table to sample (default 0.2)")
   .option(
     "--long-term-fraction <n>",
-    "非短期句池抽样比例（默认与 --fraction 相同）",
+    "Fraction for non-short-term sentence pool (default: same as --fraction)",
   )
   .action(
     (opts: { db: string; fraction?: string; longTermFraction?: string }) => {
@@ -172,7 +172,7 @@ program
         });
         printJson(out);
       } catch (e) {
-        exitValidation(e, "extract-memory-sentences 失败");
+        exitValidation(e, "extract-memory-sentences failed");
       }
     },
   );
@@ -298,21 +298,24 @@ async function runDreamingPipelineCli(opts: {
 program
   .command("dreaming-pipeline")
   .description(
-    "先 predream-decay（duration 衰减与短期句清理），再 story-word-sentence-pipeline；stdout 为合并 JSON（predream + storyWordSentencePipeline）",
+    "Run predream-decay (duration decay + short-term cleanup), then story-word-sentence-pipeline; stdout is merged JSON",
   )
-  .requiredOption("--db <path>", "sqlite 数据库路径")
-  .option("--max-words <n>", "story 阶段从 words 表最多抽几个词（默认 10）")
+  .requiredOption("--db <path>", "SQLite database path")
+  .option(
+    "--max-words <n>",
+    "Max words to sample from words table per story stage (default 10)",
+  )
   .option(
     "--fraction <n>",
-    "句子与 normal_words 相关性共用抽样比例（默认 0.2）",
+    "Sampling fraction for sentence vs normal_words relevance (default 0.2)",
   )
   .option(
     "--min-runs <n>",
-    "story-word-sentence-pipeline 随机轮数下限（含），默认 3",
+    "Minimum random pipeline runs for story-word-sentence (inclusive, default 3)",
   )
   .option(
     "--max-runs <n>",
-    "story-word-sentence-pipeline 随机轮数上限（含），默认 5",
+    "Maximum random pipeline runs for story-word-sentence (inclusive, default 5)",
   )
   .action(
     async (opts: {
@@ -325,7 +328,7 @@ program
       try {
         await runDreamingPipelineCli(opts);
       } catch (e) {
-        exitValidation(e, "dreaming-pipeline 失败");
+        exitValidation(e, "dreaming-pipeline failed");
       }
     },
   );
@@ -333,35 +336,38 @@ program
 program
   .command("predream-decay")
   .description(
-    "predream：全表 sentences.duration 减 1；短期且 duration<=0 时 weight>=7 转长期，weight<7 删句；stdout JSON 报告",
+    "Predream: decrement sentences.duration globally; short-term rows with duration<=0 become long-term if weight>=7 else deleted; stdout JSON report",
   )
-  .requiredOption("--db <path>", "sqlite 数据库路径")
+  .requiredOption("--db <path>", "SQLite database path")
   .action((opts: { db: string }) => {
     try {
       const out = runPredreamDecayFromDb(resolvePath(opts.db));
       printJson(out);
     } catch (e) {
-      exitValidation(e, "predream-decay 失败");
+      exitValidation(e, "predream-decay failed");
     }
   });
 
 program
   .command("story-word-sentence-buckets")
   .description(
-    "完整 dreaming：抽词+故事+句/词评分分桶+双 link 回写+删孤立 normal_words+孤儿句合并删；stdout JSON 必含 orphanSentenceMerge 等全套字段",
+    "Full dreaming bucket pass: sample words, story, score buckets, dual link writes, prune orphan normal_words, merge orphan sentences; stdout JSON includes orphanSentenceMerge",
   )
-  .requiredOption("--db <path>", "sqlite 数据库路径")
-  .option("--max-words <n>", "生成故事时从 words 表最多抽几个词（默认 10）")
+  .requiredOption("--db <path>", "SQLite database path")
+  .option(
+    "--max-words <n>",
+    "Max words from words table when generating story (default 10)",
+  )
   .option(
     "--fraction <n>",
-    "句子与 normal_words 相关性共用抽样比例（默认 0.2）",
+    "Sampling fraction for sentence vs normal_words relevance (default 0.2)",
   )
   .action(
     async (opts: { db: string; maxWords?: string; fraction?: string }) => {
       try {
         await runStoryWordSentenceBucketsCli(opts);
       } catch (e) {
-        exitValidation(e, "story-word-sentence-buckets 失败");
+        exitValidation(e, "story-word-sentence-buckets failed");
       }
     },
   );
@@ -369,16 +375,25 @@ program
 program
   .command("story-word-sentence-pipeline")
   .description(
-    "在同一 DB 上顺序执行多轮完整 story-word-sentence-buckets；轮数在 --min-runs～--max-runs 间随机（默认 3–5）；stdout 仅输出多轮汇总 JSON",
+    "Run multiple full story-word-sentence-buckets passes in sequence; run count random between --min-runs and --max-runs (default 3–5); stdout is aggregate JSON only",
   )
-  .requiredOption("--db <path>", "sqlite 数据库路径")
-  .option("--max-words <n>", "每轮生成故事时从 words 表最多抽几个词（默认 10）")
+  .requiredOption("--db <path>", "SQLite database path")
+  .option(
+    "--max-words <n>",
+    "Max words from words table per story round (default 10)",
+  )
   .option(
     "--fraction <n>",
-    "每轮句子与 normal_words 相关性共用抽样比例（默认 0.2）",
+    "Per-round sampling fraction for sentence vs normal_words relevance (default 0.2)",
   )
-  .option("--min-runs <n>", "随机轮数下限（含），默认 3")
-  .option("--max-runs <n>", "随机轮数上限（含），默认 5")
+  .option(
+    "--min-runs <n>",
+    "Random run count lower bound (inclusive, default 3)",
+  )
+  .option(
+    "--max-runs <n>",
+    "Random run count upper bound (inclusive, default 5)",
+  )
   .action(
     async (opts: {
       db: string;
@@ -390,29 +405,34 @@ program
       try {
         await runStoryWordSentencePipelineCli(opts);
       } catch (e) {
-        exitValidation(e, "story-word-sentence-pipeline 失败");
+        exitValidation(e, "story-word-sentence-pipeline failed");
       }
     },
   );
 
 program
   .command("harden-db")
-  .description("清理无效/重复 link，并补齐关系表索引与唯一约束")
-  .requiredOption("--db <path>", "sqlite 数据库路径")
+  .description(
+    "Remove invalid/duplicate links and ensure relationship indexes and unique constraints",
+  )
+  .requiredOption("--db <path>", "SQLite database path")
   .action((opts: { db: string }) => {
     try {
       hardenDbFile(resolvePath(opts.db));
       process.stdout.write("ok\n");
     } catch (e) {
-      exitValidation(e, "harden-db 失败");
+      exitValidation(e, "harden-db failed");
     }
   });
 
 program
   .command("import-awp-v2-tuple")
   .requiredOption("--from-json <path>", "article-word-pipeline tuple JSON")
-  .requiredOption("--db <path>", "sqlite 数据库路径")
-  .option("--as-of <YYYY-MM-DD>", "日期")
+  .requiredOption("--db <path>", "SQLite database path")
+  .option(
+    "--as-of <YYYY-MM-DD>",
+    "Optional date (YYYY-MM-DD) passed as today to import",
+  )
   .action((opts: { fromJson: string; db: string; asOf?: string }) => {
     try {
       importAwpV2TupleFromPaths(
@@ -423,7 +443,7 @@ program
         },
       );
     } catch (e) {
-      exitValidation(e, "导入 awp v2 tuple 失败");
+      exitValidation(e, "import awp v2 tuple failed");
     }
   });
 

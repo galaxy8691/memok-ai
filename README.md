@@ -68,10 +68,10 @@ Useful installer env vars:
 - `MEMOK_PLUGINS_INSTALL_TIMEOUT_SECONDS` (optional; seconds cap for `openclaw plugins install`, `0` = no limit)
 - `MEMOK_PLUGINS_INSTALL_NO_PTY=1` (Linux: skip `script`-based pseudo-TTY wrapper; use if the default wrapper misbehaves)
 - `MEMOK_SKIP_GATEWAY_RESTART=1` (skip the final gateway restart step)
-- `MEMOK_GATEWAY_RESTART_TIMEOUT_SECONDS` (default `120`; bash installers only, wraps restart with `timeout` when available)
+- `MEMOK_GATEWAY_RESTART_TIMEOUT_SECONDS` (default `120`; Bash uses `timeout` when available; PowerShell uses `Start-Process` + `WaitForExit` for the same cap on gateway restart)
 - `MEMOK_KEEP_SOURCE=1` (keep source directory for debugging)
 
-If `openclaw plugins install` prints success but never returns (so the installer never reaches the next line), that is usually OpenClaw’s CLI not exiting; on Linux the installer runs the command inside `script` to reduce that. You can also `Ctrl+C` and run `openclaw memok setup` if the plugin files are already installed. Avoid registering the same plugin twice (e.g. both `memok-ai` and `memok-ai-src` paths) — remove the duplicate entry in `openclaw.json` to silence “duplicate plugin id” warnings.
+If `openclaw plugins install` prints success but never returns (so the installer never reaches the next line), that is usually OpenClaw’s CLI not exiting; on **Linux**, the Bash installer can run the command inside `script` (pseudo-TTY) unless `MEMOK_PLUGINS_INSTALL_NO_PTY=1`. The **PowerShell** installer calls `openclaw` directly (no PTY wrapper). You can `Ctrl+C` and run `openclaw memok setup` if the plugin files are already installed. Avoid registering the same plugin twice (e.g. both `memok-ai` and `memok-ai-src` paths) — remove the duplicate entry in `openclaw.json` to silence “duplicate plugin id” warnings.
 
 If setup fails with `plugins.allow excludes "memok"`, add `"memok"` to `~/.openclaw/openclaw.json` under `plugins.allow`, then rerun:
 
@@ -94,6 +94,25 @@ The setup wizard lets you configure:
 - Dreaming schedule (`dailyAt` / cron / timezone)
 
 If you change plugins or config outside the installer, restart the gateway so the running process picks them up (for example `openclaw gateway restart`).
+
+## CLI reference
+
+`memok-ai --help` and subcommands use **English** descriptions. For a Chinese walkthrough of each command, see [README.zh-CN.md](./README.zh-CN.md#命令行参考).
+
+| Command | Purpose |
+| --- | --- |
+| `article-core-words` | Extract core words from an article file |
+| `article-core-words-normalize` | Normalize synonyms from core-words JSON |
+| `article-sentences` | Extract memory-oriented sentences |
+| `article-sentence-core-combine` | Combine sentences + normalized words tuple |
+| `article-word-pipeline` | Full article-word pipeline to tuple JSON |
+| `extract-memory-sentences` | Sample memory sentences from SQLite |
+| `dreaming-pipeline` | Predream + story-word-sentence pipeline |
+| `predream-decay` | Predream decay pass only |
+| `story-word-sentence-buckets` | One full story/word/sentence bucket pass |
+| `story-word-sentence-pipeline` | Multiple bucket passes (random run count) |
+| `harden-db` | Clean links and add indexes |
+| `import-awp-v2-tuple` | Import AWP v2 tuple JSON into SQLite |
 
 ## Quick CLI Example
 

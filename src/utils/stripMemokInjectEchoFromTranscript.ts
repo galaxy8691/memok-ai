@@ -20,7 +20,7 @@ function stripDelimitedMemokBlocks(text: string): string {
     if (end === -1) {
       // 有起点无终点：剥到下一轮对话或文末，避免半段残留
       const tail = out.slice(afterStart);
-      const m = /\n\n(用户:|OpenClaw:)/.exec(tail);
+      const m = /\n\n((?:User|用户):|OpenClaw:)/.exec(tail);
       const cut = m ? start + MEMOK_INJECT_START.length + m.index : out.length;
       out = `${out.slice(0, start).replace(/\s+$/, "")}${out.slice(cut)}`;
       break;
@@ -34,7 +34,7 @@ function stripDelimitedMemokBlocks(text: string): string {
 /**
  * 从 transcript 中移除本插件注入的候选记忆：
  * 1) `@@@MEMOK_RECALL_START@@@` … `@@@MEMOK_RECALL_END@@@` 整段；
- * 2) 旧版从 `【memok-ai 候选记忆】` 到下一轮 `用户:`/`OpenClaw:` 之前。
+ * 2) 旧版从 `【memok-ai 候选记忆】` 到下一轮 `User:`/`用户:`/`OpenClaw:` 之前。
  */
 export function stripMemokInjectEchoFromTranscript(text: string): string {
   let out = stripDelimitedMemokBlocks(text);
@@ -44,7 +44,7 @@ export function stripMemokInjectEchoFromTranscript(text: string): string {
       break;
     }
     const tail = out.slice(idx);
-    const m = /\n\n(用户:|OpenClaw:)/.exec(tail);
+    const m = /\n\n((?:User|用户):|OpenClaw:)/.exec(tail);
     const removeEnd = idx + (m ? m.index : tail.length);
     out = `${out.slice(0, idx).replace(/\s+$/, "")}${out.slice(removeEnd)}`;
   }

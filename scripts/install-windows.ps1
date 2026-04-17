@@ -32,16 +32,42 @@ function Restart-Gateway-End {
     Write-Host "[memok-ai installer] skipping gateway restart (MEMOK_SKIP_GATEWAY_RESTART=1). Run: openclaw gateway restart"
     return
   }
-  Write-Host "[memok-ai installer] restarting OpenClaw gateway to apply configuration..."
-  try {
-    openclaw gateway restart | Out-Host
-  } catch {
-    try {
-      openclaw restart | Out-Host
-    } catch {
-      Write-Host "[memok-ai installer] warning: gateway restart failed. Run manually: openclaw gateway restart"
+  $gwTimeout = 120
+  if ($env:MEMOK_GATEWAY_RESTART_TIMEOUT_SECONDS -match '^\d+$') {
+    $parsed = [int]$env:MEMOK_GATEWAY_RESTART_TIMEOUT_SECONDS
+    if ($parsed -gt 0) {
+      $gwTimeout = $parsed
     }
   }
+  Write-Host "[memok-ai installer] restarting OpenClaw gateway to apply configuration (timeout ${gwTimeout}s)..."
+  function Try-OpenclawRestart {
+    param([string[]]$ArgList)
+    try {
+      $p = Start-Process -FilePath "openclaw" -ArgumentList $ArgList -PassThru -NoNewWindow
+      if ($null -eq $p) {
+        return $false
+      }
+      $timeoutMs = [Math]::Max(1, $gwTimeout) * 1000
+      $exited = $p.WaitForExit($timeoutMs)
+      if (-not $exited) {
+        try {
+          $p.Kill()
+        } catch {
+        }
+        return $false
+      }
+      return ($p.ExitCode -eq 0)
+    } catch {
+      return $false
+    }
+  }
+  if (Try-OpenclawRestart @("gateway", "restart")) {
+    return
+  }
+  if (Try-OpenclawRestart @("restart")) {
+    return
+  }
+  Write-Host "[memok-ai installer] warning: gateway restart failed or timed out. Run manually: openclaw gateway restart"
 }
 
 Write-Host "[memok-ai installer] cloning/updating source..."

@@ -56,14 +56,14 @@ export function collectLabeledTurns(messages: unknown[]): string[] {
     if (!text) {
       continue;
     }
-    const label = role === "user" ? "用户" : "OpenClaw";
+    const label = role === "user" ? "User" : "OpenClaw";
     lines.push(`${label}: ${text}`);
   }
   return lines;
 }
 
 export function stripFencedCodeBlocks(text: string): string {
-  return text.replace(/```[\s\S]*?```/g, "[代码块已省略]");
+  return text.replace(/```[\s\S]*?```/g, "[code block omitted]");
 }
 
 export function clampToLastChars(text: string, maxChars: number): string {
