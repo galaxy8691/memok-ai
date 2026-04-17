@@ -11,6 +11,17 @@ REPO_URL_FALLBACK="${MEMOK_REPO_URL_FALLBACK:-https://github.com/galaxy8691/memo
 TARGET_DIR="${MEMOK_INSTALL_DIR:-$HOME/.openclaw/extensions/memok-ai-src}"
 NPM_REGISTRY="${MEMOK_NPM_REGISTRY:-https://registry.npmmirror.com}"
 
+# Optional bounded runtime for commands that may block on RPC/systemd (Linux `timeout` from coreutils).
+run_with_timeout() {
+  local seconds="$1"
+  shift
+  if command -v timeout >/dev/null 2>&1; then
+    timeout "$seconds" "$@"
+  else
+    "$@"
+  fi
+}
+
 need_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
     echo "[memok-ai cn installer] missing required command: $1" >&2
@@ -21,24 +32,31 @@ need_cmd() {
 restart_gateway() {
   local reason="$1"
   local wait_seconds="${MEMOK_RESTART_WAIT_SECONDS:-20}"
+  local gw_timeout="${MEMOK_GATEWAY_RESTART_TIMEOUT_SECONDS:-120}"
+  if [ "${MEMOK_SKIP_GATEWAY_RESTART:-0}" = "1" ]; then
+    echo "[memok-ai cn installer] skipping gateway restart (MEMOK_SKIP_GATEWAY_RESTART=1). Restart the gateway yourself if needed."
+    return 0
+  fi
   echo "[memok-ai cn installer] restarting OpenClaw gateway (${reason})..."
-  if openclaw gateway restart; then
+  if run_with_timeout "$gw_timeout" openclaw gateway restart; then
     echo "[memok-ai cn installer] waiting ${wait_seconds}s for gateway to come back..."
     sleep "${wait_seconds}"
-  elif openclaw restart; then
+  elif run_with_timeout "$gw_timeout" openclaw restart; then
     echo "[memok-ai cn installer] waiting ${wait_seconds}s for gateway to come back..."
     sleep "${wait_seconds}"
   else
-    echo "[memok-ai cn installer] warning: gateway restart command failed, continuing."
+    echo "[memok-ai cn installer] warning: gateway restart failed or timed out after ${gw_timeout}s; continuing."
   fi
 }
 
 wait_memok_command_ready() {
   local max_attempts="${MEMOK_SETUP_WAIT_ATTEMPTS:-10}"
   local delay_seconds="${MEMOK_SETUP_WAIT_INTERVAL_SECONDS:-2}"
+  local cli_timeout="${MEMOK_CLI_TIMEOUT_SECONDS:-15}"
   local i=1
   while [ "$i" -le "$max_attempts" ]; do
-    if openclaw memok --help >/dev/null 2>&1; then
+    echo "[memok-ai cn installer] checking memok CLI (${i}/${max_attempts}, ${cli_timeout}s timeout per check)..."
+    if run_with_timeout "$cli_timeout" openclaw memok --help >/dev/null 2>&1; then
       return 0
     fi
     sleep "${delay_seconds}"
@@ -95,6 +113,7 @@ npm --prefix "$TARGET_DIR" run build
 echo "[memok-ai cn installer] installing plugin..."
 openclaw plugins install "$TARGET_DIR"
 
+echo "[memok-ai cn installer] install step finished; next: gateway restart then memok setup."
 restart_gateway "load newly installed plugin"
 if ! wait_memok_command_ready; then
   echo "[memok-ai cn installer] warning: memok CLI is not ready yet; setup may fail."
