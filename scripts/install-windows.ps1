@@ -27,6 +27,23 @@ function Cleanup-SourceDir {
   }
 }
 
+function Restart-Gateway-End {
+  if ($env:MEMOK_SKIP_GATEWAY_RESTART -eq "1") {
+    Write-Host "[memok-ai installer] skipping gateway restart (MEMOK_SKIP_GATEWAY_RESTART=1). Run: openclaw gateway restart"
+    return
+  }
+  Write-Host "[memok-ai installer] restarting OpenClaw gateway to apply configuration..."
+  try {
+    openclaw gateway restart | Out-Host
+  } catch {
+    try {
+      openclaw restart | Out-Host
+    } catch {
+      Write-Host "[memok-ai installer] warning: gateway restart failed. Run manually: openclaw gateway restart"
+    }
+  }
+}
+
 Write-Host "[memok-ai installer] cloning/updating source..."
 if (Test-Path (Join-Path $TargetDir ".git")) {
   git -C $TargetDir fetch --depth=1 origin main | Out-Host
@@ -46,7 +63,7 @@ npm --prefix $TargetDir run build | Out-Host
 Write-Host "[memok-ai installer] installing plugin..."
 openclaw plugins install $TargetDir
 
-Write-Host "[memok-ai installer] install step finished; next: memok setup (restart the gateway yourself when you want new plugins loaded)."
+Write-Host "[memok-ai installer] plugin install finished; next: interactive memok setup (gateway will be restarted at the end on success)."
 
 Write-Host "[memok-ai installer] running interactive setup..."
 try {
@@ -66,6 +83,8 @@ try {
 }
 
 Cleanup-SourceDir
+
+Restart-Gateway-End
 
 Write-Host ""
 Write-Host "[memok-ai installer] done."

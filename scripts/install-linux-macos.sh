@@ -28,6 +28,23 @@ run_openclaw_plugins_install() {
   fi
 }
 
+restart_gateway_end() {
+  if [ "${MEMOK_SKIP_GATEWAY_RESTART:-0}" = "1" ]; then
+    echo "[memok-ai installer] skipping gateway restart (MEMOK_SKIP_GATEWAY_RESTART=1). Run: openclaw gateway restart"
+    return 0
+  fi
+  local gw_timeout="${MEMOK_GATEWAY_RESTART_TIMEOUT_SECONDS:-120}"
+  echo "[memok-ai installer] restarting OpenClaw gateway to apply configuration..."
+  if run_with_timeout "$gw_timeout" openclaw gateway restart; then
+    return 0
+  fi
+  if run_with_timeout "$gw_timeout" openclaw restart; then
+    return 0
+  fi
+  echo "[memok-ai installer] warning: gateway restart failed or timed out (${gw_timeout}s). Run manually: openclaw gateway restart" >&2
+  return 1
+}
+
 need_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
     echo "[memok-ai installer] missing required command: $1" >&2
@@ -78,7 +95,7 @@ else
   run_openclaw_plugins_install "$TARGET_DIR"
 fi
 
-echo "[memok-ai installer] install step finished; next: memok setup (restart the gateway yourself when you want new plugins loaded)."
+echo "[memok-ai installer] plugin install finished; next: interactive memok setup (gateway will be restarted at the end on success)."
 
 echo "[memok-ai installer] running interactive setup..."
 # Do NOT capture stdout/stderr: `openclaw memok setup` uses readline prompts; command substitution
@@ -97,6 +114,10 @@ if [ $SETUP_STATUS -ne 0 ]; then
 fi
 
 cleanup_source_dir
+
+set +e
+restart_gateway_end
+set -e
 
 echo
 echo "[memok-ai installer] done."
