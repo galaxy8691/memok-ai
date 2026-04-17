@@ -16,6 +16,10 @@ import {
   MEMOK_MEMORY_INJECT_MARKER,
   stripMemokInjectEchoFromTranscript,
 } from "./utils/stripMemokInjectEchoFromTranscript.js";
+import { loadProjectEnv } from "./llm/openaiCompat.js";
+import type { RunDreamingPipelineFromDbOpts } from "./dreaming-pipeline/runDreamingPipelineFromDb.js";
+import { applyMemokPluginLlmEnv, type MemokLlmEnvConfig } from "./plugin/applyMemokPluginLlmEnv.js";
+import { registerDreamingPipelineCron } from "./plugin/registerDreamingPipelineCron.js";
 
 function getDefaultDbPath(): string {
   return (
@@ -37,7 +41,7 @@ function getDefaultMemoryFeedbackLogPath(): string {
 }
 
 /** `plugins.entries.memok-ai.config` 与 manifest 字段对应 */
-interface MemokConfig {
+interface MemokConfig extends MemokLlmEnvConfig {
   dbPath?: string;
   /** 与网关 entry 顶层的 `enabled` 同义时可出现在 config 内 */
   enabled?: boolean;
@@ -59,6 +63,22 @@ interface MemokConfig {
    * 未设置时默认 **true**；候选记忆块由 `@@@MEMOK_RECALL_*@@@` 定界，落库前会整段剥离，一般无需关闭。
    */
   persistTranscriptToMemory?: boolean;
+  /**
+   * 是否在**网关进程内**按 cron 调度执行 `dreaming-pipeline`（predream + story-word-sentence，会调 LLM）。
+   * 默认 **false**，需显式 `true` 才启用。
+   */
+  dreamingPipelineScheduleEnabled?: boolean;
+  /** 每日触发时间（`HH:mm`，如 `03:00`）；仅在未设置 `dreamingPipelineCron` 时生效 */
+  dreamingPipelineDailyAt?: string;
+  /** 5 段 cron，默认每天本地/指定时区 **03:00**（`0 3 * * *`） */
+  dreamingPipelineCron?: string;
+  /** IANA 时区（如 `Asia/Shanghai`）；不设则由 croner 按本机解释 */
+  dreamingPipelineTimezone?: string;
+  /** 传给 story 段，同 CLI `dreaming-pipeline` */
+  dreamingPipelineMaxWords?: number;
+  dreamingPipelineFraction?: number;
+  dreamingPipelineMinRuns?: number;
+  dreamingPipelineMaxRuns?: number;
 }
 
 /** 网关 `plugins.entries.memok-ai`：顶层 `enabled`，选项在 `config` */
@@ -278,6 +298,31 @@ function clampToLastChars(text: string, maxChars: number): string {
   return text.slice(-maxChars);
 }
 
+function cronPatternFromDailyAt(
+  raw: unknown,
+  logger?: { warn?: (msg: string) => void },
+): string | undefined {
+  if (typeof raw !== "string") {
+    return undefined;
+  }
+  const t = raw.trim();
+  if (!t) {
+    return undefined;
+  }
+  const m = t.match(/^(\d{1,2}):(\d{2})$/);
+  if (!m) {
+    logger?.warn?.(`[memok-ai] dreamingPipelineDailyAt 格式无效（期望 HH:mm）：${t}`);
+    return undefined;
+  }
+  const hour = Number.parseInt(m[1], 10);
+  const minute = Number.parseInt(m[2], 10);
+  if (!Number.isFinite(hour) || !Number.isFinite(minute) || hour < 0 || hour > 23 || minute < 0 || minute > 59) {
+    logger?.warn?.(`[memok-ai] dreamingPipelineDailyAt 超出范围（00:00~23:59）：${t}`);
+    return undefined;
+  }
+  return `${minute} ${hour} * * *`;
+}
+
 export default definePluginEntry({
   id: "memok-ai",
   name: "Memok AI Memory",
@@ -293,6 +338,19 @@ export default definePluginEntry({
     if (entry?.enabled === false || pluginCfg.enabled === false) {
       api.logger?.info("[memok-ai] 已禁用");
       return;
+    }
+
+    loadProjectEnv();
+    applyMemokPluginLlmEnv(pluginCfg, api.logger);
+    if (
+      (pluginCfg.llmProvider ?? "inherit") !== "inherit" ||
+      (pluginCfg.llmApiKey ?? "").trim() ||
+      (pluginCfg.llmModel ?? "").trim() ||
+      (pluginCfg.llmModelPreset ?? "").trim()
+    ) {
+      api.logger?.info(
+        "[memok-ai] 已根据插件配置尝试补齐 OPENAI_API_KEY / OPENAI_BASE_URL / MEMOK_LLM_MODEL（不覆盖已存在的环境变量）",
+      );
     }
 
     const dbPath = expandUserPath(pluginCfg.dbPath || getDefaultDbPath());
@@ -321,6 +379,41 @@ export default definePluginEntry({
       api.logger?.info(
         "[memok-ai] persistTranscriptToMemory 已显式关闭，对话不会写入 SQLite（仅注入/工具反馈仍可用）。",
       );
+    }
+
+    if (pluginCfg.dreamingPipelineScheduleEnabled === true) {
+      const rawCron = 
+        typeof pluginCfg.dreamingPipelineCron === "string" && pluginCfg.dreamingPipelineCron.trim()
+          ? pluginCfg.dreamingPipelineCron.trim()
+          : (cronPatternFromDailyAt(pluginCfg.dreamingPipelineDailyAt, api.logger) ?? "0 3 * * *");
+      const dreamingTz =
+        typeof pluginCfg.dreamingPipelineTimezone === "string" && pluginCfg.dreamingPipelineTimezone.trim()
+          ? pluginCfg.dreamingPipelineTimezone.trim()
+          : undefined;
+      const pipelineOpts: RunDreamingPipelineFromDbOpts = {};
+      const mw = pluginCfg.dreamingPipelineMaxWords;
+      if (typeof mw === "number" && Number.isFinite(mw)) {
+        pipelineOpts.maxWords = Math.floor(mw);
+      }
+      const fr = pluginCfg.dreamingPipelineFraction;
+      if (typeof fr === "number" && Number.isFinite(fr)) {
+        pipelineOpts.fraction = fr;
+      }
+      const mn = pluginCfg.dreamingPipelineMinRuns;
+      if (typeof mn === "number" && Number.isFinite(mn)) {
+        pipelineOpts.minRuns = Math.floor(mn);
+      }
+      const mx = pluginCfg.dreamingPipelineMaxRuns;
+      if (typeof mx === "number" && Number.isFinite(mx)) {
+        pipelineOpts.maxRuns = Math.floor(mx);
+      }
+      registerDreamingPipelineCron({
+        logger: api.logger ?? {},
+        dbPath,
+        pattern: rawCron,
+        timezone: dreamingTz,
+        pipelineOpts: Object.keys(pipelineOpts).length > 0 ? pipelineOpts : undefined,
+      });
     }
 
     const runSave = async (

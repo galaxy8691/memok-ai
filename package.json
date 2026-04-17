@@ -8,7 +8,9 @@
   },
   "type": "module",
   "openclaw": {
-    "extensions": ["./dist/plugin.js"],
+    "extensions": [
+      "./dist/plugin.js"
+    ],
     "compat": {
       "pluginApi": ">=2026.3.24",
       "minGatewayVersion": "2026.3.24"
@@ -33,6 +35,7 @@
     "@sinclair/typebox": "^0.34.49",
     "better-sqlite3": "^12.9.0",
     "commander": "^14.0.3",
+    "croner": "^10.0.1",
     "dotenv": "^17.4.2",
     "openai": "^6.34.0",
     "openclaw": "^2026.3.24",

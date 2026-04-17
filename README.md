@@ -480,12 +480,18 @@ npm run import:outputs -- --db ./memok.sqlite --as-of 2026-04-14
 - **清单**：根目录 `openclaw.plugin.json`（扩展 id、人类可读名称、**捆绑技能** `skills/memok-memory`、配置项说明）。  
 - **配置项**：  
   - **`dbPath`**：SQLite 路径（支持 `~/…`）。  
+  - **`llmProvider` / `llmApiKey` / `llmBaseUrl` / `llmModel` / `llmModelPreset`**：在网关配置或 Control UI 中选择 **OpenAI 兼容**供应商、填写 **API Key** 与模型。插件加载时会把它们映射到 **`OPENAI_API_KEY`**、**`OPENAI_BASE_URL`**（预设或 `custom`+`llmBaseUrl`）、**`MEMOK_LLM_MODEL`**，且**不会覆盖**进程中已设置的环境变量（便于你在网关级统一用 env）。**`llmProvider: inherit`**（默认）表示不在插件里写 Base URL，仅靠环境变量。`llmModelPreset` 提供按供应商分组的常见模型下拉；建议优先选**非 reasoning/think**模型，稳定且成本更可控。  
   - **`enabled`**：为 `false` 时整插件不注册（含保存与候选记忆）。  
   - **`memoryInjectEnabled`**：是否启用候选记忆与反馈工具（默认 `true`；与对话落库独立）。  
   - **`memoryRecallMode`**：候选记忆如何送达模型（默认 **`skill+hint`**，与 manifest 一致）。**`skill`**：仅 **`appendSystemContext`** 强制附带候选 + 工具同轮再抽样。**`skill+hint`**：同上，并额外 **`prependSystemContext` + `prependContext`** 同句提示，且在 **`appendSystemContext`** 开头再写一行 **【memok】** 说明（因部分 Web UI 不展示运行期 prepend，便于在系统区看到）。**`prepend`**：整块 **`prependContext`**（旧行为）。  
   - **`persistTranscriptToMemory`**：是否在 **`agent_end` / `message_sent`** 时把对话 transcript 再跑 **`saveTextToMemoryDb`** 写入 SQLite（**默认 `true`**）。候选记忆块由 **`@@@MEMOK_RECALL_START@@@` … `@@@MEMOK_RECALL_END@@@`** 定界，落库前会整段剥离，避免把注入内容再灌回图库；若你**完全不要**对话落库，可显式设为 **`false`**。  
   - **`extractFraction` / `longTermFraction` / `maxInjectChars`**：抽样与 CLI 相同的 `extractMemorySentencesByWordSample` 逻辑；**prepend** 模式限制 `prependContext` 长度，**skill** 模式限制工具返回文本长度。  
   - **`memoryFeedbackLogPath`**：模型调用 **`memok_report_used_memory_ids`** 且 **`sentenceIds` 非空**时，向该路径 **追加一行 JSON**（便于调试；字段含原始 **`sentenceIds`**、校验后的 **`validIds`**、**`updatedCount`**；写库失败时可能含 **`dbError`**）。与 SQLite 更新**并行**，默认 `~/.openclaw/extensions/memok-ai/memory-feedback.jsonl`。  
+  - **`dreamingPipelineScheduleEnabled`**：是否在 **OpenClaw 网关进程内**用内存定时器按 cron 跑 **`dreaming-pipeline`**（先 predream 衰减再 story-word-sentence，**会调用 LLM**）。**默认 `false`**；设为 **`true`** 后方启用。依赖网关**常驻**（与系统 crontab 无关）。  
+  - **`dreamingPipelineDailyAt`**：给安装/配置阶段更友好的每日时间（**`HH:mm`**，如 `03:00`）。仅在 `dreamingPipelineCron` 留空时生效。  
+  - **`dreamingPipelineCron`**：5 段 cron，**优先级高于** `dreamingPipelineDailyAt`；默认 `0 3 * * *`（每天凌晨 **3:00**，在 `dreamingPipelineTimezone` 或本机时区下解释）。  
+  - **`dreamingPipelineTimezone`**：可选，IANA 时区（如 **`Asia/Shanghai`**）。  
+  - **`dreamingPipelineMaxWords` / `dreamingPipelineFraction` / `dreamingPipelineMinRuns` / `dreamingPipelineMaxRuns`**：与 CLI **`dreaming-pipeline`** 同义，用于定时任务内的 story 段。  
 - **环境变量**：**`MEMOK_MEMORY_DB`** 可覆盖默认 **`dbPath`**（便于开发与多环境隔离）。
 
 ### 记忆读取与反馈（插件内）
