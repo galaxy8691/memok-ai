@@ -14,6 +14,7 @@ function Require-Command {
 
 Require-Command git
 Require-Command openclaw
+Require-Command npm
 
 Write-Host "[memok-ai installer] cloning/updating source..."
 if (Test-Path (Join-Path $TargetDir ".git")) {
@@ -27,11 +28,26 @@ if (Test-Path (Join-Path $TargetDir ".git")) {
   git clone --depth=1 $RepoUrl $TargetDir | Out-Host
 }
 
+Write-Host "[memok-ai installer] building plugin dist..."
+npm --prefix $TargetDir install | Out-Host
+npm --prefix $TargetDir run build | Out-Host
+
 Write-Host "[memok-ai installer] installing plugin..."
 openclaw plugins install $TargetDir
 
 Write-Host "[memok-ai installer] running interactive setup..."
-openclaw memok setup
+try {
+  openclaw memok setup
+} catch {
+  $msg = $_.Exception.Message
+  if ($msg -match 'plugins\.allow excludes "memok"') {
+    Write-Host "[memok-ai installer] setup blocked by plugins.allow."
+    Write-Host '[memok-ai installer] add "memok" to ~/.openclaw/openclaw.json -> plugins.allow, then run: openclaw memok setup'
+  } else {
+    Write-Host "[memok-ai installer] setup command failed. Please run manually: openclaw memok setup"
+  }
+  throw
+}
 
 Write-Host ""
 Write-Host "[memok-ai installer] done. Please restart OpenClaw gateway."

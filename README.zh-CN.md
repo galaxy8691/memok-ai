@@ -53,6 +53,12 @@ curl -L -o install-windows.cmd https://raw.githubusercontent.com/galaxy8691/memo
 install-windows.cmd
 ```
 
+如果 setup 报错 `plugins.allow excludes "memok"`，请在 `~/.openclaw/openclaw.json` 的 `plugins.allow` 增加 `"memok"`，然后重试：
+
+```bash
+openclaw memok setup
+```
+
 手动安装备用方案：
 
 ```bash
