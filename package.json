@@ -26,8 +26,8 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
-  "files": ["dist", "openclaw.plugin.json", "skills"],
+  "license": "MIT",
+  "files": ["dist", "openclaw.plugin.json", "skills", "LICENSE"],
   "dependencies": {
     "@sinclair/typebox": "^0.34.49",
     "better-sqlite3": "^12.9.0",

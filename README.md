@@ -13,6 +13,33 @@ It extracts structured memory units with OpenAI-compatible LLM APIs and stores t
 - OpenClaw plugin for incremental conversation persistence and memory recall
 - Interactive plugin setup (`openclaw memok setup`) for provider/model/schedule configuration
 
+**Evaluation (tested):** With the OpenClaw plugin recall/report flow, effective memory utilization (candidate memories that were actually reflected in assistant replies) **exceeded 95%** in our runs. Your results will depend on model, task, and sampling settings.
+
+### What the OpenClaw plugin does for you
+
+- Per-turn recall: sampled candidates can be injected before each reply, so long threads stay on track without pasting full history every time.
+- Reinforcement: calling `memok_report_used_memory_ids` bumps weights for memories you actually used, so frequent facts stay warm.
+- Dreaming / predream: optional scheduled jobs run decay, merges, and cleanup—more like maintenance passes over a graph than a pure append-only log.
+
+### How this differs from embedding-only stacks
+
+| | memok-ai | Typical hosted vector DB |
+| --- | --- | --- |
+| Deployment | SQLite on your machine | Cloud API + billing |
+| Recall signal | Word / normalized-word graph, weights, sampling | Embedding similarity |
+| Explainability | Structured rows you can inspect | Mostly similarity scores |
+| Privacy | Data stays local by default | Usually leaves your host |
+
+That is a trade-off, not a universal “better/worse” on retrieval quality.
+
+### Notes from real OpenClaw use
+
+Heavy users report coherent follow-up across sessions (e.g. performance work, architecture, release tooling), stable feedback when citing memories, and predream/dreaming behaving as expected once scheduled. Active databases in the wild have reached on the order of ~1k sentences and 100k+ link rows—enough to exercise recall at non-trivial scale; your numbers will differ.
+
+Informal timing on typical local setups (SSD, modest DB size) is often on the order of ~10² ms to persist a turn and sub-100 ms for recall queries—indicative only, not a SLA. Informal “recall accuracy %” figures from the community are anecdotes unless you reproduce them on your workload.
+
+In short: memok targets an associative, reinforceable, optionally forgetful loop without managing embedding models or a separate vector service—closer to a structured “notebook graph” than a generic semantic index.
+
 ## Requirements
 
 - Node.js **≥20** (LTS recommended)
@@ -171,4 +198,4 @@ Contributions are welcome. See the full guide: [CONTRIBUTING.md](./CONTRIBUTING.
 
 ## License
 
-ISC
+Released under the [MIT License](LICENSE).
