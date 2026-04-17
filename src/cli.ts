@@ -24,6 +24,7 @@ import { runDreamFeedbackPipelineFromDb } from "./dreaming-pipeline/runDreamFeed
 import { runSentenceRelevanceFromDb } from "./dreaming-pipeline/runSentenceRelevanceFromDb.js";
 import { runStorySentenceBucketsFromDb } from "./dreaming-pipeline/runStorySentenceBucketsFromDb.js";
 import { extractMemorySentencesByWordSample } from "./read-memory-pipeline/extractMemorySentencesByWordSample.js";
+import { hardenDbFile } from "./sqlite/hardenDb.js";
 
 function resolvePath(p: string): string {
   return resolve(process.cwd(), p);
@@ -288,6 +289,19 @@ program
       printJson(out);
     } catch (e) {
       exitValidation(e, "dream-feedback-pipeline 失败");
+    }
+  });
+
+program
+  .command("harden-db")
+  .description("清理无效/重复 link，并补齐关系表索引与唯一约束")
+  .requiredOption("--db <path>", "sqlite 数据库路径")
+  .action((opts: { db: string }) => {
+    try {
+      hardenDbFile(resolvePath(opts.db));
+      process.stdout.write("ok\n");
+    } catch (e) {
+      exitValidation(e, "harden-db 失败");
     }
   });
 

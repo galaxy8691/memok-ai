@@ -127,6 +127,7 @@ export function extractMemorySentencesByWordSample(
   const ownDb = typeof dbOrPath === "string";
   const db = ownDb ? new Database(dbOrPath) : dbOrPath;
   try {
+    db.pragma("foreign_keys = ON");
     const countRow = db.prepare("SELECT COUNT(*) as c FROM words").get() as { c: number | bigint };
     const n = Number(countRow.c);
     if (n <= 0) {
