@@ -2,8 +2,8 @@ import type { ApplyNormalWordLinkFeedbackResult } from "./applyNormalWordLinkFee
 import type { ApplyResultLinkFeedbackResult } from "./applyResultLinkFeedback.js";
 import {
   type RunStoryWordSentenceBucketsFromDbOpts,
-  type StoryWordSentenceBucketsResult,
   runStoryWordSentenceBucketsFromDb,
+  type StoryWordSentenceBucketsResult,
 } from "./runStoryWordSentenceBucketsFromDb.js";
 
 function sumSentenceLinkFeedback(

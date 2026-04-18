@@ -133,7 +133,7 @@ function canonicalizeNewText(newText: string, originalText: string): string {
   }
   nt = nt
     .replace(
-      /[`~!@#$%^&*()+=\[\]{}\\|;:'",.<>/?·！￥…（）【】《》、，。；：‘’“”\-★☆]/g,
+      /[`~!@#$%^&*()+=[\]{}\\|;:'",.<>/?·！￥…（）【】《》、，。；：‘’“”\-★☆]/g,
       "",
     )
     .replace(/\d+/g, "")
@@ -146,7 +146,7 @@ function canonicalizeNewText(newText: string, originalText: string): string {
   const cleanedSrc = src
     .replace(/\d+/g, "")
     .replace(
-      /[`~!@#$%^&*()+=\[\]{}\\|;:'",.<>/?·！￥…（）【】《》、，。；：‘’“”\-★☆]/g,
+      /[`~!@#$%^&*()+=[\]{}\\|;:'",.<>/?·！￥…（）【】《》、，。；：‘’“”\-★☆]/g,
       "",
     )
     .replaceAll("_", "")

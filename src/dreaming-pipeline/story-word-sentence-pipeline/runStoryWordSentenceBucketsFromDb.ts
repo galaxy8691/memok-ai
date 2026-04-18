@@ -11,10 +11,10 @@ import {
   applyResultLinkFeedback,
 } from "./applyResultLinkFeedback.js";
 import {
-  type NormalWordRelevanceBuckets,
-  type RelevanceBuckets,
   buildNormalWordRelevanceBuckets,
   buildRelevanceBuckets,
+  type NormalWordRelevanceBuckets,
+  type RelevanceBuckets,
 } from "./buildRelevanceBuckets.js";
 import {
   type DeleteOrphanNormalWordsResult,

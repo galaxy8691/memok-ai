@@ -41,7 +41,6 @@ export function applyResultLinkFeedback(
   const parsed = ResultLinkFeedbackInputSchema.parse(input);
   const plusIdsRaw = uniqIntIds(parsed.buckets.id_ge_60);
   const minusIdsRaw = uniqIntIds(parsed.buckets.id_lt_40);
-  const plusSet = new Set(plusIdsRaw);
   const minusSet = new Set(minusIdsRaw);
   const conflicts = plusIdsRaw.filter((id) => minusSet.has(id));
   const conflictSet = new Set(conflicts);

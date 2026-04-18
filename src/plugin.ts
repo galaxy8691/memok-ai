@@ -1,15 +1,15 @@
 import { copyFileSync, existsSync } from "node:fs";
 import {
-  type OpenClawConfig,
   definePluginEntry,
+  type OpenClawConfig,
 } from "openclaw/plugin-sdk/plugin-entry";
 import { loadProjectEnv } from "./llm/openaiCompat.js";
 import { applyMemokPluginLlmEnv } from "./plugin/applyMemokPluginLlmEnv.js";
 import {
-  type MemokConfig,
-  type MemokPluginEntry,
   expandUserPath,
   getDefaultDbPath,
+  type MemokConfig,
+  type MemokPluginEntry,
   resolveMemokDbPathFromConfig,
 } from "./plugin/memokTypes.js";
 import {

@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
-  INITIAL_TURN_WINDOW,
-  MAX_AGENT_END_CHARS,
   clampToLastChars,
   collectLabeledTurns,
   extractTextFromContent,
+  INITIAL_TURN_WINDOW,
+  MAX_AGENT_END_CHARS,
   oneLineSnippet,
   shortHash,
   stripFencedCodeBlocks,

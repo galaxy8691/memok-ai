@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  type StoryWordSentenceBucketsResult,
   runStoryWordSentencePipelineFromDb,
+  type StoryWordSentenceBucketsResult,
 } from "../src/dreaming-pipeline/story-word-sentence-pipeline/index.js";
 
 function stubRound(

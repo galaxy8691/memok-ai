@@ -8,17 +8,17 @@ import { stripMemokInjectEchoFromTranscript } from "../utils/stripMemokInjectEch
 import type { MemokConfig } from "./memokTypes.js";
 import { cronPatternFromDailyAt, isMemokSetupCliRun } from "./memokTypes.js";
 import {
+  memoryCandidateIdsBySession,
   RecallCandidateMemoriesParams,
   ReportUsedMemoryIdsParams,
-  memoryCandidateIdsBySession,
   recallAndStoreCandidates,
 } from "./memoryCandidates.js";
 import { registerDreamingPipelineCron } from "./registerDreamingPipelineCron.js";
 import {
-  INITIAL_TURN_WINDOW,
-  MAX_AGENT_END_CHARS,
   clampToLastChars,
   collectLabeledTurns,
+  INITIAL_TURN_WINDOW,
+  MAX_AGENT_END_CHARS,
   oneLineSnippet,
   shortHash,
   stripFencedCodeBlocks,

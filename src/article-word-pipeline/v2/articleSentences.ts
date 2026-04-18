@@ -106,7 +106,7 @@ const CODE_LINE_START =
   /^\s*(def\b|class\b|import\b|from\b|#|\/\/|\/\*|\*\/|public\b|private\b|SELECT\b|INSERT\b|UPDATE\b|function\b)/im;
 
 export function sentenceLooksLikeVerbatimTechnical(s: string): boolean {
-  if (!s || !s.trim()) {
+  if (!s?.trim()) {
     return false;
   }
   if (s.includes("```")) {

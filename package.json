@@ -8,7 +8,9 @@
   },
   "type": "module",
   "openclaw": {
-    "extensions": ["./dist/plugin.js"],
+    "extensions": [
+      "./dist/plugin.js"
+    ],
     "compat": {
       "pluginApi": ">=2026.3.24",
       "minGatewayVersion": "2026.3.24"
@@ -27,7 +29,12 @@
   "keywords": [],
   "author": "",
   "license": "MIT",
-  "files": ["dist", "openclaw.plugin.json", "skills", "LICENSE"],
+  "files": [
+    "dist",
+    "openclaw.plugin.json",
+    "skills",
+    "LICENSE"
+  ],
   "dependencies": {
     "@sinclair/typebox": "^0.34.49",
     "better-sqlite3": "^12.9.0",

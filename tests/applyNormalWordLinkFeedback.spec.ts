@@ -36,49 +36,47 @@ function makeDb(root: string): string {
 }
 
 describe("applyNormalWordLinkFeedback", () => {
-  it(
-    "updates only links for story words; plus on high normal_id; minus and delete <=0; skip conflicts",
-    { timeout: 15000 },
-    () => {
-      const root = mkdtempSync(join(tmpdir(), "memok-nw-fb-"));
-      try {
-        const dbPath = makeDb(root);
-        const stats = applyNormalWordLinkFeedback(dbPath, {
-          words: ["alpha", "beta"],
-          normalWordBuckets: {
-            id_ge_60: [101, 103, 201],
-            id_ge_40_lt_60: [],
-            id_lt_40: [102, 103],
-          },
-        });
-        expect(stats.matchedWordIds).toBe(2);
-        expect(stats.skippedConflicts).toBe(1);
-        expect(stats.targetedPlusNormalWords).toBe(2);
-        expect(stats.targetedMinusNormalWords).toBe(1);
-        // 101: two existing links +1; 201: no links -> 2 inserts (alpha+beta)
-        expect(stats.updatedPlus).toBe(2);
-        expect(stats.insertedPlusLinks).toBe(2);
-        // 102: (1,102) 1->0 then deleted => 1 update 1 delete
-        expect(stats.updatedMinus).toBe(1);
-        expect(stats.deleted).toBe(1);
+  it("updates only links for story words; plus on high normal_id; minus and delete <=0; skip conflicts", {
+    timeout: 15000,
+  }, () => {
+    const root = mkdtempSync(join(tmpdir(), "memok-nw-fb-"));
+    try {
+      const dbPath = makeDb(root);
+      const stats = applyNormalWordLinkFeedback(dbPath, {
+        words: ["alpha", "beta"],
+        normalWordBuckets: {
+          id_ge_60: [101, 103, 201],
+          id_ge_40_lt_60: [],
+          id_lt_40: [102, 103],
+        },
+      });
+      expect(stats.matchedWordIds).toBe(2);
+      expect(stats.skippedConflicts).toBe(1);
+      expect(stats.targetedPlusNormalWords).toBe(2);
+      expect(stats.targetedMinusNormalWords).toBe(1);
+      // 101: two existing links +1; 201: no links -> 2 inserts (alpha+beta)
+      expect(stats.updatedPlus).toBe(2);
+      expect(stats.insertedPlusLinks).toBe(2);
+      // 102: (1,102) 1->0 then deleted => 1 update 1 delete
+      expect(stats.updatedMinus).toBe(1);
+      expect(stats.deleted).toBe(1);
 
-        const db = new Database(dbPath, { readonly: true });
-        const rows = db
-          .prepare(
-            "SELECT word_id, normal_id, weight FROM word_to_normal_link ORDER BY normal_id, word_id",
-          )
-          .all() as { word_id: number; normal_id: number; weight: number }[];
-        db.close();
-        expect(rows).toEqual([
-          { word_id: 1, normal_id: 101, weight: 3 },
-          { word_id: 2, normal_id: 101, weight: 2 },
-          { word_id: 1, normal_id: 103, weight: 3 },
-          { word_id: 1, normal_id: 201, weight: 1 },
-          { word_id: 2, normal_id: 201, weight: 1 },
-        ]);
-      } finally {
-        rmSync(root, { recursive: true, force: true });
-      }
-    },
-  );
+      const db = new Database(dbPath, { readonly: true });
+      const rows = db
+        .prepare(
+          "SELECT word_id, normal_id, weight FROM word_to_normal_link ORDER BY normal_id, word_id",
+        )
+        .all() as { word_id: number; normal_id: number; weight: number }[];
+      db.close();
+      expect(rows).toEqual([
+        { word_id: 1, normal_id: 101, weight: 3 },
+        { word_id: 2, normal_id: 101, weight: 2 },
+        { word_id: 1, normal_id: 103, weight: 3 },
+        { word_id: 1, normal_id: 201, weight: 1 },
+        { word_id: 2, normal_id: 201, weight: 1 },
+      ]);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
 });

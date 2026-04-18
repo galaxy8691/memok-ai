@@ -1,7 +1,7 @@
 import { Type } from "@sinclair/typebox";
 import {
-  type MemoryExtractedSentence,
   extractMemorySentencesByWordSample,
+  type MemoryExtractedSentence,
 } from "../read-memory-pipeline/extractMemorySentencesByWordSample.js";
 import { scrubOpenclawHeartbeatArtifacts } from "../utils/scrubOpenclawHeartbeatArtifacts.js";
 import {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  type MemokSetupAnswers,
   isValidDailyAt,
+  type MemokSetupAnswers,
   mergeMemokSetupToConfig,
 } from "../src/plugin/setupWizard.js";
 
