@@ -45,7 +45,7 @@ In short: memok targets an associative, reinforceable, optionally forgetful loop
 - Node.js **≥20** (LTS recommended)
 - npm
 
-**OpenClaw plugin:** gateway **≥2026.3.24** and plugin API **≥2026.3.24** (see `openclaw.compat` in [package.json](package.json)).
+**OpenClaw plugin:** gateway **≥2026.4.15** and plugin API **≥2026.4.15** (see `openclaw.compat` in [package.json](package.json)).
 
 Install dependencies:
 

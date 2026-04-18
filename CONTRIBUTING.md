@@ -4,7 +4,7 @@ Thanks for contributing.
 
 ## Development Setup
 
-- Node.js **≥20** (LTS recommended); OpenClaw gateway **≥2026.3.24** when developing the plugin (see `openclaw.compat` in [package.json](package.json)).
+- Node.js **≥20** (LTS recommended); OpenClaw gateway **≥2026.4.15** when developing the plugin (see `openclaw.compat` in [package.json](package.json)).
 
 ```bash
 npm install

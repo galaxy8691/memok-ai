@@ -103,7 +103,7 @@ try {
   $msg = $_.Exception.Message
   if ($msg -match "unknown command 'memok'") {
     Write-Host "[memok-ai installer] memok command unavailable. Your OpenClaw version may be too old or gateway is still restarting."
-    Write-Host "[memok-ai installer] please upgrade OpenClaw (>= 2026.3.24), restart gateway, then run: openclaw memok setup"
+    Write-Host "[memok-ai installer] please upgrade OpenClaw (>= 2026.4.15), restart gateway, then run: openclaw memok setup"
   } elseif ($msg -match 'plugins\.allow excludes "memok"') {
     Write-Host "[memok-ai installer] setup blocked by plugins.allow."
     Write-Host '[memok-ai installer] add "memok" to ~/.openclaw/openclaw.json -> plugins.allow, then run: openclaw memok setup'

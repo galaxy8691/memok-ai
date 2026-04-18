@@ -12,8 +12,8 @@
       "./dist/plugin.js"
     ],
     "compat": {
-      "pluginApi": ">=2026.3.24",
-      "minGatewayVersion": "2026.3.24"
+      "pluginApi": ">=2026.4.15",
+      "minGatewayVersion": "2026.4.15"
     }
   },
   "scripts": {
@@ -45,7 +45,7 @@
     "zod": "^4.3.6"
   },
   "peerDependencies": {
-    "openclaw": ">=2026.3.24"
+    "openclaw": "^2026.4.15"
   },
   "peerDependenciesMeta": {
     "openclaw": {

@@ -133,7 +133,7 @@ set -e
 
 if [ $SETUP_STATUS -ne 0 ]; then
   echo "[memok-ai cn installer] 配置命令退出，状态码: ${SETUP_STATUS}"
-  echo "[memok-ai cn installer] 提示：若提示未知 memok 命令，请将 OpenClaw 升级到 >= 2026.3.24；"
+  echo "[memok-ai cn installer] 提示：若提示未知 memok 命令，请将 OpenClaw 升级到 >= 2026.4.15；"
   echo "[memok-ai cn installer] 若被 plugins.allow 拦截，请在 ~/.openclaw/openclaw.json 的 plugins.allow 中加入 \"memok\""
   echo "[memok-ai cn installer] 请手动执行: openclaw memok setup"
   exit $SETUP_STATUS

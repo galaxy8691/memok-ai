@@ -107,7 +107,7 @@ set -e
 
 if [ $SETUP_STATUS -ne 0 ]; then
   echo "[memok-ai installer] setup exited with status ${SETUP_STATUS}."
-  echo "[memok-ai installer] hints: upgrade OpenClaw (>= 2026.3.24) if 'memok' is unknown;"
+  echo "[memok-ai installer] hints: upgrade OpenClaw (>= 2026.4.15) if 'memok' is unknown;"
   echo "[memok-ai installer] add \"memok\" to plugins.allow in ~/.openclaw/openclaw.json if blocked."
   echo "[memok-ai installer] run manually for full output: openclaw memok setup"
   exit $SETUP_STATUS

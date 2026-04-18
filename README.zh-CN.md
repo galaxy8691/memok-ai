@@ -48,7 +48,7 @@
 - Node.js **≥20**（建议 LTS）
 - npm
 
-**OpenClaw 插件：**网关 **≥2026.3.24**、plugin API **≥2026.3.24**（见 [package.json](package.json) 中的 `openclaw.compat`）。
+**OpenClaw 插件：**网关 **≥2026.4.15**、plugin API **≥2026.4.15**（见 [package.json](package.json) 中的 `openclaw.compat`）。
 
 安装依赖：
 
