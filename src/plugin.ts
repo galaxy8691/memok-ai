@@ -60,7 +60,7 @@ export default definePluginEntry({
                 "[memok-ai] setup 完成：已写入 plugins.entries.memok-ai.config",
                 `- llmProvider=${answers.llmProvider}`,
                 `- model=${answers.llmModel?.trim() ? answers.llmModel.trim() : (answers.llmModelPreset ?? "(未设置)")}`,
-                `- memorySlotExclusive=${answers.memorySlotExclusive ? "yes(memok-ai)" : "no"}`,
+                "- plugins.slots.memory=memok-ai（向导固定独占 memory 槽）",
                 `- dreamingSchedule=${answers.dreamingPipelineScheduleEnabled ? `on @ ${answers.dreamingPipelineDailyAt ?? "03:00"}` : "off"}`,
                 copiedFromClean
                   ? `- 已从 ${cleanPath} 复制初始库到 ${dbPath}`

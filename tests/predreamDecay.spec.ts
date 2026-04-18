@@ -25,7 +25,7 @@ function makeSchema(db: Database.Database): void {
 }
 
 describe("runPredreamDecayFromDb", () => {
-  it("decrements all durations then promotes short-term depleted with weight>=7 and deletes weight<7", () => {
+  it("decrements all durations then promotes any short-term with weight>=7 and deletes short-term depleted with weight<7", () => {
     const root = mkdtempSync(join(tmpdir(), "memok-predream-"));
     const dbPath = join(root, "t.sqlite");
     try {
@@ -80,6 +80,40 @@ describe("runPredreamDecayFromDb", () => {
         .prepare("SELECT COUNT(*) as c FROM sentence_to_normal_link")
         .get() as { c: number };
       expect(links.c).toBe(0);
+      ro.close();
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("promotes short-term with weight>=7 even when duration stays >0 after decay", () => {
+    const root = mkdtempSync(join(tmpdir(), "memok-predream-"));
+    const dbPath = join(root, "t.sqlite");
+    try {
+      const db = new Database(dbPath);
+      makeSchema(db);
+      db.prepare(
+        `INSERT INTO sentences (sentence, weight, duration, last_edit_date, is_short_term, duration_change_times)
+         VALUES ('heavy', 8, 10, '2026-01-01', 1, 0)`,
+      ).run();
+      db.close();
+
+      const out = runPredreamDecayFromDb(dbPath);
+      expect(out.sentencesDurationDecremented).toBe(1);
+      expect(out.promotedToLongTerm).toBe(1);
+      expect(out.deletedSentences).toBe(0);
+
+      const ro = new Database(dbPath, { readonly: true });
+      const row = ro
+        .prepare(
+          "SELECT duration, is_short_term FROM sentences WHERE sentence = 'heavy'",
+        )
+        .get() as {
+        duration: number;
+        is_short_term: number;
+      };
+      expect(row.duration).toBe(9);
+      expect(row.is_short_term).toBe(0);
       ro.close();
     } finally {
       rmSync(root, { recursive: true, force: true });

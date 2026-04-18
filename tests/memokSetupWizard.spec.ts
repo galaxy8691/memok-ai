@@ -44,7 +44,6 @@ describe("setupWizard helpers", () => {
       llmProvider: "deepseek",
       llmApiKey: "sk-1",
       llmModelPreset: "deepseek-chat",
-      memorySlotExclusive: true,
       dreamingPipelineScheduleEnabled: true,
       dreamingPipelineDailyAt: "03:00",
       dreamingPipelineTimezone: "Asia/Shanghai",
@@ -67,7 +66,6 @@ describe("setupWizard helpers", () => {
       llmApiKey: undefined,
       llmModel: "",
       llmModelPreset: undefined,
-      memorySlotExclusive: false,
       dreamingPipelineScheduleEnabled: false,
     };
     const out = mergeMemokSetupToConfig({}, answers);
@@ -76,20 +74,20 @@ describe("setupWizard helpers", () => {
     expect(memok?.llmBaseUrl).toBe("https://x/v1");
     expect(memok?.llmApiKey).toBeUndefined();
     expect(memok?.llmModel).toBeUndefined();
+    expect(pluginsShape(out)?.slots?.memory).toBe("memok-ai");
   });
 
-  it("removes memok slot when non-exclusive selected", () => {
+  it("always sets memory slot to memok-ai (exclusive)", () => {
     const cur = {
       plugins: {
-        slots: { memory: "memok-ai" },
+        slots: { memory: "memory-core" },
       },
     } as Record<string, unknown>;
     const answers: MemokSetupAnswers = {
       llmProvider: "inherit",
-      memorySlotExclusive: false,
       dreamingPipelineScheduleEnabled: false,
     };
     const out = mergeMemokSetupToConfig(cur, answers);
-    expect(pluginsShape(out)?.slots?.memory).toBeUndefined();
+    expect(pluginsShape(out)?.slots?.memory).toBe("memok-ai");
   });
 });

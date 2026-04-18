@@ -40,7 +40,6 @@ export type MemokSetupAnswers = {
   llmBaseUrl?: string;
   llmModelPreset?: string;
   llmModel?: string;
-  memorySlotExclusive: boolean;
   dreamingPipelineScheduleEnabled: boolean;
   dreamingPipelineDailyAt?: string;
   dreamingPipelineTimezone?: string;
@@ -119,11 +118,6 @@ export async function promptMemokSetupAnswers(): Promise<MemokSetupAnswers> {
             ),
           )
         : undefined;
-    const memorySlotExclusive = toYes(
-      await ask("是否让 memok-ai 独占 memory 槽位？(y/N，默认不独占): "),
-      false,
-    );
-
     const dreamingOn = toYes(
       await ask("是否启用 dreaming 定时任务？(Y/n): "),
       true,
@@ -154,7 +148,6 @@ export async function promptMemokSetupAnswers(): Promise<MemokSetupAnswers> {
       llmBaseUrl,
       llmModelPreset,
       llmModel,
-      memorySlotExclusive,
       dreamingPipelineScheduleEnabled: dreamingOn,
       dreamingPipelineDailyAt,
       dreamingPipelineTimezone,
@@ -205,11 +198,8 @@ export function mergeMemokSetupToConfig(
   }
 
   const nextSlots: Record<string, unknown> = { ...slots };
-  if (answers.memorySlotExclusive) {
-    nextSlots.memory = "memok-ai";
-  } else if (nextSlots.memory === "memok-ai") {
-    delete nextSlots.memory;
-  }
+  // 向导固定把 memory 槽交给 memok-ai，避免网关侧「槽位仍是 memory-core」导致插件不生效、发梦不跑。
+  nextSlots.memory = "memok-ai";
 
   return {
     ...root,

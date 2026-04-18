@@ -146,7 +146,7 @@ openclaw memok setup
 向导可配置：
 
 - LLM 供应商 / API Key / 模型预设（可手填覆盖）
-- 是否独占 memory 槽位（默认不独占）
+- `plugins.slots.memory` 固定为 `memok-ai`（向导不再询问是否独占）
 - dreaming 定时（dailyAt / cron / timezone）
 
 若在安装脚本之外修改插件或配置，请自行重启网关以便运行中的进程加载新配置（例如 `openclaw gateway restart`）。
