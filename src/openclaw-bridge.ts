@@ -1,6 +1,7 @@
 /**
  * Stable surface for the OpenClaw plugin package (`memok-ai-openclaw`).
  * Import only from `memok-ai-core/openclaw-bridge` (or published `memok-ai/openclaw-bridge`).
+ * This core package does not ship plugin gateway code; the plugin lives in the separate repo.
  */
 
 export {

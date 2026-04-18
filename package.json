@@ -17,15 +17,6 @@
       "import": "./dist/openclaw-bridge.js"
     }
   },
-  "openclaw": {
-    "extensions": [
-      "./dist/plugin.js"
-    ],
-    "compat": {
-      "pluginApi": ">=2026.3.24",
-      "minGatewayVersion": "2026.3.24"
-    }
-  },
   "scripts": {
     "prepare": "npm run build",
     "build": "tsc -p tsconfig.json",
@@ -42,8 +33,6 @@
   "license": "MIT",
   "files": [
     "dist",
-    "openclaw.plugin.json",
-    "skills",
     "LICENSE"
   ],
   "dependencies": {
@@ -62,8 +51,5 @@
     "tsx": "^4.21.0",
     "typescript": "^6.0.3",
     "vitest": "^4.1.4"
-  },
-  "optionalDependencies": {
-    "opusscript": "0.0.8"
   }
 }

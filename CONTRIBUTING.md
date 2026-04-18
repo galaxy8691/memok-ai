@@ -4,7 +4,7 @@ Thanks for contributing.
 
 ## Development Setup
 
-- Node.js **≥20** (LTS recommended); OpenClaw gateway **≥2026.3.24** when developing the plugin (see `openclaw.compat` in [package.json](package.json)).
+- Node.js **≥20** (LTS recommended). OpenClaw gateway and plugin API version requirements live in [memok-ai-openclaw](https://github.com/galaxy8691/memok-ai-openclaw) (this core repo is gateway-plugin free).
 
 ```bash
 npm install
@@ -34,8 +34,7 @@ Before opening a PR:
 - Keep changes focused (one problem per PR when possible)
 - Add or update tests for behavior changes
 - Run `npm run lint`, `npm run build`, and `npm test`
-- Update docs when CLI/plugin behavior changes
-- If you change install steps or installer env vars, update both [README.md](README.md) and [README.zh-CN.md](README.zh-CN.md) in the same PR
+- Update docs when CLI behavior changes; plugin install docs belong in [memok-ai-openclaw](https://github.com/galaxy8691/memok-ai-openclaw)
 - Include a clear summary: what changed, why, and how it was verified
 
 ## SQLite connections
@@ -71,6 +70,6 @@ For bugs, please include:
 
 - Repro steps
 - Expected vs actual behavior
-- Relevant config (`openclaw.plugin.json` / plugin config snippet)
+- Relevant config (plugin `openclaw.plugin.json` or gateway `openclaw.json` snippet from the plugin repo)
 - Logs/errors
 - Runtime versions (Node, OpenClaw)
