@@ -44,14 +44,6 @@
     "openai": "^6.34.0",
     "zod": "^4.3.6"
   },
-  "peerDependencies": {
-    "openclaw": "^2026.4.15"
-  },
-  "peerDependenciesMeta": {
-    "openclaw": {
-      "optional": true
-    }
-  },
   "devDependencies": {
     "@biomejs/biome": "^2.4.12",
     "@types/better-sqlite3": "^7.6.13",
