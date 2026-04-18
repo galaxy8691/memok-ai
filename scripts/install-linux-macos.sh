@@ -28,6 +28,31 @@ run_openclaw_plugins_install() {
   fi
 }
 
+# Second `plugins install` fails if ~/.openclaw/extensions/memok-ai already exists.
+# Copy dist + manifest (+ skills) only; keep sqlite, .env, node_modules.
+sync_memok_installed_plugin_from_source() {
+  local src="$1"
+  local name dest
+  name="$(cd "$src" && node -p "require('./package.json').name")"
+  dest="$(dirname "$src")/$name"
+  if [ ! -d "$dest" ] || [ ! -f "$dest/package.json" ]; then
+    echo "[memok-ai installer] installed dir missing at $dest; running openclaw plugins install..."
+    run_openclaw_plugins_install "$src"
+    return
+  fi
+  echo "[memok-ai installer] syncing dist/, openclaw.plugin.json, skills/ into $dest ..."
+  rm -rf "$dest/dist"
+  cp -a "$src/dist" "$dest/"
+  cp -f "$src/openclaw.plugin.json" "$dest/"
+  if [ -d "$src/skills" ]; then
+    rm -rf "$dest/skills"
+    cp -a "$src/skills" "$dest/"
+  fi
+  if [ -f "$src/LICENSE" ]; then
+    cp -f "$src/LICENSE" "$dest/"
+  fi
+}
+
 restart_gateway_end() {
   if [ "${MEMOK_SKIP_GATEWAY_RESTART:-0}" = "1" ]; then
     echo "[memok-ai installer] skipping gateway restart (MEMOK_SKIP_GATEWAY_RESTART=1). Run: openclaw gateway restart"
@@ -55,6 +80,7 @@ need_cmd() {
 need_cmd git
 need_cmd openclaw
 need_cmd npm
+need_cmd node
 
 cleanup_source_dir() {
   if [ "${MEMOK_KEEP_SOURCE:-0}" = "1" ]; then
@@ -113,9 +139,9 @@ if [ $SETUP_STATUS -ne 0 ]; then
   exit $SETUP_STATUS
 fi
 
-echo "[memok-ai installer] setup done; rebuilding and re-installing plugin so extensions/ matches this build (no manual steps)."
+echo "[memok-ai installer] setup done; rebuilding and syncing built artifacts into the installed extension dir."
 npm --prefix "$TARGET_DIR" run build
-run_openclaw_plugins_install "$TARGET_DIR"
+sync_memok_installed_plugin_from_source "$TARGET_DIR"
 
 cleanup_source_dir
 

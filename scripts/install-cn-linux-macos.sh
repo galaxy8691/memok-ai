@@ -38,6 +38,31 @@ run_openclaw_plugins_install() {
   fi
 }
 
+# setup 之后目录里已有 memok-ai；再次 `plugins install` 会报 plugin already exists。
+# 只同步构建产物与清单，保留 memok.sqlite、.env、node_modules。
+sync_memok_installed_plugin_from_source() {
+  local src="$1"
+  local name dest
+  name="$(cd "$src" && node -p "require('./package.json').name")"
+  dest="$(dirname "$src")/$name"
+  if [ ! -d "$dest" ] || [ ! -f "$dest/package.json" ]; then
+    echo "[memok-ai cn installer] 未找到已安装目录 $dest ，改为执行 openclaw plugins install…"
+    run_openclaw_plugins_install "$src"
+    return
+  fi
+  echo "[memok-ai cn installer] 正在将 dist/、openclaw.plugin.json、skills/ 同步到 $dest …"
+  rm -rf "$dest/dist"
+  cp -a "$src/dist" "$dest/"
+  cp -f "$src/openclaw.plugin.json" "$dest/"
+  if [ -d "$src/skills" ]; then
+    rm -rf "$dest/skills"
+    cp -a "$src/skills" "$dest/"
+  fi
+  if [ -f "$src/LICENSE" ]; then
+    cp -f "$src/LICENSE" "$dest/"
+  fi
+}
+
 restart_gateway_end() {
   if [ "${MEMOK_SKIP_GATEWAY_RESTART:-0}" = "1" ]; then
     echo "[memok-ai cn installer] 已跳过网关重启（MEMOK_SKIP_GATEWAY_RESTART=1）；需要时请自行执行: openclaw gateway restart"
@@ -99,6 +124,7 @@ clone_or_update_repo() {
 need_cmd git
 need_cmd openclaw
 need_cmd npm
+need_cmd node
 
 echo "[memok-ai cn installer] 克隆/更新源码…"
 clone_or_update_repo "$REPO_URL_CN" "$REPO_URL_FALLBACK"
@@ -139,9 +165,9 @@ if [ $SETUP_STATUS -ne 0 ]; then
   exit $SETUP_STATUS
 fi
 
-echo "[memok-ai cn installer] setup 已完成；正在再次 build 并同步到扩展目录（无需用户手抄配置或手动装插件）…"
+echo "[memok-ai cn installer] setup 已完成；正在再次 build 并同步到已安装扩展目录（无需再次 plugins install）…"
 npm --prefix "$TARGET_DIR" run build
-run_openclaw_plugins_install "$TARGET_DIR"
+sync_memok_installed_plugin_from_source "$TARGET_DIR"
 
 cleanup_source_dir
 

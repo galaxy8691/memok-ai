@@ -20,6 +20,39 @@ function Require-Command {
 Require-Command git
 Require-Command openclaw
 Require-Command npm
+Require-Command node
+
+function Sync-MemokInstalledPluginFromSource {
+  param([string]$Src)
+  $pkg = Get-Content (Join-Path $Src "package.json") -Raw | ConvertFrom-Json
+  $name = $pkg.name
+  $parent = Split-Path -Parent $Src
+  $dest = Join-Path $parent $name
+  if (-not (Test-Path $dest) -or -not (Test-Path (Join-Path $dest "package.json"))) {
+    Write-Host "[memok-ai installer] installed dir missing at $dest; running openclaw plugins install..."
+    openclaw plugins install $Src
+    return
+  }
+  Write-Host "[memok-ai installer] syncing dist/, openclaw.plugin.json, skills/ into $dest ..."
+  $dstDist = Join-Path $dest "dist"
+  if (Test-Path $dstDist) {
+    Remove-Item -Recurse -Force $dstDist
+  }
+  Copy-Item -Recurse -Force (Join-Path $Src "dist") $dstDist
+  Copy-Item -Force (Join-Path $Src "openclaw.plugin.json") (Join-Path $dest "openclaw.plugin.json")
+  $srcSkills = Join-Path $Src "skills"
+  if (Test-Path $srcSkills) {
+    $dstSkills = Join-Path $dest "skills"
+    if (Test-Path $dstSkills) {
+      Remove-Item -Recurse -Force $dstSkills
+    }
+    Copy-Item -Recurse -Force $srcSkills $dstSkills
+  }
+  $lic = Join-Path $Src "LICENSE"
+  if (Test-Path $lic) {
+    Copy-Item -Force $lic (Join-Path $dest "LICENSE")
+  }
+}
 
 function Cleanup-SourceDir {
   if ($env:MEMOK_KEEP_SOURCE -eq "1") {
@@ -113,9 +146,9 @@ try {
   throw
 }
 
-Write-Host "[memok-ai installer] setup done; rebuilding and re-installing plugin so extensions match this build."
+Write-Host "[memok-ai installer] setup done; rebuilding and syncing built artifacts into the installed extension dir."
 npm --prefix $TargetDir run build | Out-Host
-openclaw plugins install $TargetDir
+Sync-MemokInstalledPluginFromSource $TargetDir
 
 Cleanup-SourceDir
 
