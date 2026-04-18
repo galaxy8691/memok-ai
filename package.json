@@ -1,12 +1,22 @@
 {
   "name": "memok-ai",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Node/TS implementation of memok v2 pipeline",
   "main": "dist/index.js",
   "bin": {
     "memok-ai": "dist/cli.js"
   },
   "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./openclaw-bridge": {
+      "types": "./dist/openclaw-bridge.d.ts",
+      "import": "./dist/openclaw-bridge.js"
+    }
+  },
   "openclaw": {
     "extensions": [
       "./dist/plugin.js"
@@ -17,6 +27,7 @@
     }
   },
   "scripts": {
+    "prepare": "npm run build",
     "build": "tsc -p tsconfig.json",
     "ci": "npm run lint && npm run build && npm run test",
     "lint": "biome check .",

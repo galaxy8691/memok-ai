@@ -2,6 +2,8 @@
 
 English | [简体中文](./README.zh-CN.md) · Website: [memok-ai.com](https://www.memok-ai.com/) · Mirror (中文文档 / 境内安装): [Gitee](https://gitee.com/wik20/memok-ai)
 
+**OpenClaw plugin (separate repo):** [galaxy8691/memok-ai-openclaw](https://github.com/galaxy8691/memok-ai-openclaw) — installs this package as `memok-ai-core` and loads only the thin gateway extension.
+
 `memok-ai` is a Node.js + TypeScript memory pipeline for long text and conversations.
 It extracts structured memory units with OpenAI-compatible LLM APIs and stores them in SQLite for recall, reinforcement, and dreaming workflows.
 
