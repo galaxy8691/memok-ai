@@ -105,12 +105,15 @@ export default definePluginEntry({
     const entry = api.config.plugins?.entries?.["memok-ai"] as
       | MemokPluginEntry
       | undefined;
+    // Merge order matters: `api.pluginConfig` often carries manifest/schema defaults
+    // (e.g. dreamingPipelineCron default "0 3 * * *"). User values in
+    // `plugins.entries.memok-ai.config` must win, so apply defaults first.
     const pluginCfg = {
-      ...(entry?.config && typeof entry.config === "object"
-        ? entry.config
-        : {}),
       ...(api.pluginConfig && typeof api.pluginConfig === "object"
         ? api.pluginConfig
+        : {}),
+      ...(entry?.config && typeof entry.config === "object"
+        ? entry.config
         : {}),
     } as MemokConfig;
 
