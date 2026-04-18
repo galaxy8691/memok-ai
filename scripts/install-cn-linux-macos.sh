@@ -7,11 +7,11 @@ if [ -r /dev/tty ]; then
 fi
 
 # China-optimized installer:
-# - Default to GitHub repo source
-# - Optional custom repo mirror via MEMOK_REPO_URL_CN
+# - Default clone source: Gitee (中文镜像与境内线路)
+# - Override with MEMOK_REPO_URL_CN; fallback with MEMOK_REPO_URL_FALLBACK (default GitHub)
 # - Use npm mirror registry by default
 
-REPO_URL_CN="${MEMOK_REPO_URL_CN:-https://github.com/galaxy8691/memok-ai.git}"
+REPO_URL_CN="${MEMOK_REPO_URL_CN:-https://gitee.com/wik20/memok-ai.git}"
 REPO_URL_FALLBACK="${MEMOK_REPO_URL_FALLBACK:-https://github.com/galaxy8691/memok-ai.git}"
 TARGET_DIR="${MEMOK_INSTALL_DIR:-$HOME/.openclaw/extensions/memok-ai-src}"
 NPM_REGISTRY="${MEMOK_NPM_REGISTRY:-https://registry.npmmirror.com}"

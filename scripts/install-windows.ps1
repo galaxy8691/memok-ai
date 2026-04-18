@@ -5,6 +5,11 @@ Param(
 
 $ErrorActionPreference = "Stop"
 
+# 中文版 / Gitee 安装说明：在运行 irm … | iex 前设置 $env:MEMOK_REPO_URL 为 Gitee 仓库即可覆盖下方默认（GitHub）。
+if ($env:MEMOK_REPO_URL -and $env:MEMOK_REPO_URL.Trim().Length -gt 0) {
+  $RepoUrl = $env:MEMOK_REPO_URL.Trim()
+}
+
 function Require-Command {
   param([string]$Name)
   if (-not (Get-Command $Name -ErrorAction SilentlyContinue)) {
