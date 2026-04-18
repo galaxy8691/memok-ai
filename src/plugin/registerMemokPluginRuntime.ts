@@ -1,5 +1,4 @@
 import { writeFileSync } from "node:fs";
-import type { OpenClawPluginApi } from "openclaw/plugin-sdk/plugin-entry";
 import type { RunDreamingPipelineFromDbOpts } from "../dreaming-pipeline/runDreamingPipelineFromDb.js";
 import { saveTextToMemoryDb } from "../memory/saveTextToMemoryDb.js";
 import { applySentenceUsageFeedback } from "../sqlite/applySentenceUsageFeedback.js";
@@ -42,7 +41,7 @@ export type MemokRuntimeContext = {
 };
 
 export function registerMemokPluginRuntime(
-  api: OpenClawPluginApi,
+  api: any,
   ctx: MemokRuntimeContext,
 ): void {
   const {
@@ -148,7 +147,7 @@ export function registerMemokPluginRuntime(
   };
 
   if (memoryInjectEnabled) {
-    api.on("before_prompt_build", (_event, ctx) => {
+    api.on("before_prompt_build", (_event: any, ctx: any) => {
       try {
         const sessionMemKey = ctx.sessionKey ?? ctx.sessionId ?? "unknown";
         if (memoryRecallMode === "prepend") {
@@ -224,13 +223,13 @@ export function registerMemokPluginRuntime(
         ? "从 memok SQLite 图库抽样候选记忆句（与技能 memok-memory 配合）。prepend 模式下载入前通常已自动注入一批候选；若需在本轮中重新抽样可调用。返回文本含 [id=…] 与定界块。"
         : "skill / skill+hint 下网关已在每轮 before_prompt_build 把最新候选写入 appendSystemContext；若**同一轮内**需要再抽样一次可调用。返回文本含 [id=…] 与定界块，并会刷新本轮候选 id。";
     api.registerTool(
-      (toolCtx) => {
+      (toolCtx: any) => {
         return {
           name: "memok_recall_candidate_memories",
           label: "Memok 召回候选记忆",
           description: recallDescription,
           parameters: RecallCandidateMemoriesParams,
-          async execute(_toolCallId, _params: Record<string, never>) {
+          async execute(_toolCallId: any, _params: Record<string, never>) {
             const sessionMemKey =
               toolCtx.sessionKey ?? toolCtx.sessionId ?? "unknown";
             try {
@@ -284,7 +283,7 @@ export function registerMemokPluginRuntime(
 
   if (memoryInjectEnabled) {
     api.registerTool(
-      (toolCtx) => {
+      (toolCtx: any) => {
         const reportDescription =
           memoryRecallMode === "prepend"
             ? "当你在本轮回复中**确实使用**了 `@@@MEMOK_RECALL_START@@@` … `@@@MEMOK_RECALL_END@@@` 包裹的候选记忆条目时，调用此工具上报所采用句子的数字 id（列表中的 [id=…]）。若未使用任何候选记忆，则不要调用。"
@@ -294,7 +293,7 @@ export function registerMemokPluginRuntime(
           label: "Memok 记忆反馈",
           description: reportDescription,
           parameters: ReportUsedMemoryIdsParams,
-          async execute(_toolCallId, params: { sentenceIds?: number[] }) {
+          async execute(_toolCallId: any, params: { sentenceIds?: number[] }) {
             const raw = params?.sentenceIds;
             const sentenceIds = Array.isArray(raw)
               ? raw.filter(
@@ -364,7 +363,7 @@ export function registerMemokPluginRuntime(
     api.logger?.info("[memok-ai] 已注册工具 memok_report_used_memory_ids");
   }
 
-  api.on("agent_end", (event, ctx) => {
+  api.on("agent_end", (event: any, hookCtx: any) => {
     if (!event.success) {
       return;
     }
@@ -372,7 +371,7 @@ export function registerMemokPluginRuntime(
     if (turns.length === 0) {
       return;
     }
-    const sessionId = ctx.sessionKey ?? ctx.sessionId ?? "nosession";
+    const sessionId = hookCtx.sessionKey ?? hookCtx.sessionId ?? "nosession";
     const state = sessionProgress.get(sessionId);
     let startIdx = 0;
     if (!state) {
@@ -399,9 +398,7 @@ export function registerMemokPluginRuntime(
     if (!transcript) {
       return;
     }
-    const dedupeKey = ctx.runId
-      ? `ae:${ctx.runId}`
-      : `ae:${sessionId}:${startIdx}:${turns.length}:${shortHash(transcript)}`;
+    const dedupeKey = `ae:${sessionId}:${startIdx}:${turns.length}:${shortHash(transcript)}`;
 
     sessionProgress.set(sessionId, {
       lastCount: turns.length,
@@ -411,7 +408,7 @@ export function registerMemokPluginRuntime(
     void runSave(dedupeKey, transcript, "agent_end");
   });
 
-  api.on("message_sent", (event, ctx) => {
+  api.on("message_sent", (event: any, hookCtx: any) => {
     if (!event.success) {
       return;
     }
@@ -419,7 +416,7 @@ export function registerMemokPluginRuntime(
     if (!content) {
       return;
     }
-    const dedupeKey = `ms:${ctx.conversationId ?? event.to}:${content.slice(0, 280)}`;
+    const dedupeKey = `ms:${hookCtx.conversationId ?? event.to}:${content.slice(0, 280)}`;
     void runSave(dedupeKey, `OpenClaw:\n${content}`, "message_sent");
   });
 }

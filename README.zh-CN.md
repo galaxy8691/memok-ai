@@ -58,14 +58,13 @@ npm install
 
 ### 关于首次安装耗时（请先看）
 
-`memok-ai` 在依赖里**直接声明了 `openclaw`**，而 `openclaw` 会拉下一棵很大的子依赖树（多通道集成、Matrix、可选原生模块等）。因此在本仓库目录**第一次**执行 `npm install` 时，常见 **数分钟到十几分钟**，取决于网络与磁盘；日志若长时间停在某个包的 **`postinstall`**（例如 Matrix 相关库的下载脚本）**多半是正常下载/解压，不是死机**。
+本仓库 **npm 依赖里不声明 `openclaw`**（插件在网关进程里由宿主解析 `openclaw/plugin-sdk/...`）。首次 `npm install` 的耗时主要来自 **`better-sqlite3` 等原生模块**（预编译下载或本地编译）以及其余 JS 依赖，常见 **数分钟级**（视网络与磁盘而定）；若日志长时间停在某个包的 **`install`/`postinstall`**，多为正常编译或下载，不是死机。
 
 建议：
 
 - **不要用** `--loglevel verbose` 日常安装，否则几千行 `npm http cache` 会像「卡死」。
 - 项目根目录 **`.npmrc`** 已配置 **npmmirror** 并关闭镜像站不支持的 `audit` 请求；**中国大陆**请优先用下文 **`install-cn-linux-macos.sh`**（脚本内也会设国内 npm 源）。
 - **同一台机器、同一 npm 缓存**下第二次安装或后续 `npm ci` 会快很多。
-- 瓶颈来自 **`openclaw` 的依赖体积与安装脚本**，不是 memok-ai 自身业务代码「特别大」。
 
 ## 安装方法
 

@@ -1,8 +1,5 @@
 import { copyFileSync, existsSync } from "node:fs";
-import {
-  definePluginEntry,
-  type OpenClawConfig,
-} from "openclaw/plugin-sdk/plugin-entry";
+import { definePluginEntry } from "openclaw/plugin-sdk/plugin-entry";
 import { loadProjectEnv } from "./llm/openaiCompat.js";
 import { applyMemokPluginLlmEnv } from "./plugin/applyMemokPluginLlmEnv.js";
 import {
@@ -26,9 +23,9 @@ export default definePluginEntry({
   name: "Memok AI Memory",
   description: "自动保存 OpenClaw 对话到 memok-ai 记忆系统",
 
-  register(api) {
+  register(api: any) {
     api.registerCli(
-      ({ program }) => {
+      ({ program }: any) => {
         const memok = program
           .command("memok")
           .description("memok-ai plugin commands");
@@ -50,7 +47,7 @@ export default definePluginEntry({
               unknown
             >;
             const next = mergeMemokSetupToConfig(cur, answers);
-            await runtimeConfig.writeConfigFile(next as OpenClawConfig);
+            await runtimeConfig.writeConfigFile(next);
             const dbPath = resolveMemokDbPathFromConfig(next);
             const cleanPath = `${dbPath}.clean`;
             let copiedFromClean = false;
@@ -74,22 +71,14 @@ export default definePluginEntry({
             );
           });
       },
-      {
-        descriptors: [
-          {
-            name: "memok",
-            description: "memok-ai setup and maintenance commands",
-            hasSubcommands: true,
-          },
-        ],
-      },
+      { commands: ["memok"] },
     );
 
     api.registerCommand({
       name: "memok",
       description: "Show memok setup help",
       acceptsArgs: true,
-      handler: async (ctx) => {
+      handler: async (ctx: any) => {
         const first = (ctx.args ?? "").trim().split(/\s+/)[0] ?? "";
         if (first === "setup") {
           return {

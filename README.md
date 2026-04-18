@@ -53,7 +53,7 @@ Install dependencies:
 npm install
 ```
 
-**First-time install note:** this package depends on **`openclaw`**, which pulls a very large dependency tree (integrations, optional native modules, long-running `postinstall` steps such as Matrix crypto downloads). Expect **several minutes to ~15+ minutes** for a cold `npm install`, depending on network and disk. This is normal; avoid `--loglevel verbose` for day-to-day installs (it floods the terminal). The repo `.npmrc` points at **npmmirror** and disables audit calls that Chinese mirrors do not implement. Repeat installs are much faster with a warm npm cache.
+**First-time install note:** `openclaw` is **not** listed in this repo’s npm dependencies (the gateway supplies it at plugin runtime). A cold `npm install` is dominated by **`better-sqlite3`** (native prebuild/compile) plus normal JS deps—often **a few minutes**, depending on network and disk. Avoid `--loglevel verbose` for day-to-day installs (it floods the terminal). The repo `.npmrc` points at **npmmirror** and disables audit calls that Chinese mirrors do not implement. Repeat installs are much faster with a warm npm cache.
 
 ## Installation
 

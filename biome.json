@@ -43,5 +43,21 @@
       "quoteStyle": "double",
       "semicolons": "always"
     }
-  }
+  },
+  "overrides": [
+    {
+      "includes": [
+        "src/plugin.ts",
+        "src/plugin/registerMemokPluginRuntime.ts",
+        "src/openclaw-plugin-sdk.d.ts"
+      ],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noExplicitAny": "off"
+          }
+        }
+      }
+    }
+  ]
 }
