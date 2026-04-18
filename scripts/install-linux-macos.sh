@@ -113,6 +113,10 @@ if [ $SETUP_STATUS -ne 0 ]; then
   exit $SETUP_STATUS
 fi
 
+echo "[memok-ai installer] setup done; rebuilding and re-installing plugin so extensions/ matches this build (no manual steps)."
+npm --prefix "$TARGET_DIR" run build
+run_openclaw_plugins_install "$TARGET_DIR"
+
 cleanup_source_dir
 
 set +e

@@ -139,6 +139,10 @@ if [ $SETUP_STATUS -ne 0 ]; then
   exit $SETUP_STATUS
 fi
 
+echo "[memok-ai cn installer] setup 已完成；正在再次 build 并同步到扩展目录（无需用户手抄配置或手动装插件）…"
+npm --prefix "$TARGET_DIR" run build
+run_openclaw_plugins_install "$TARGET_DIR"
+
 cleanup_source_dir
 
 set +e

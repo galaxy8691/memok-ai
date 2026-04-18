@@ -113,6 +113,10 @@ try {
   throw
 }
 
+Write-Host "[memok-ai installer] setup done; rebuilding and re-installing plugin so extensions match this build."
+npm --prefix $TargetDir run build | Out-Host
+openclaw plugins install $TargetDir
+
 Cleanup-SourceDir
 
 Restart-Gateway-End

@@ -196,6 +196,14 @@ export function mergeMemokSetupToConfig(
     }
   }
 
+  // Wizard only sets HH:mm; drop stale cron so it cannot override dailyAt at runtime.
+  if (
+    answers.dreamingPipelineScheduleEnabled === true &&
+    answers.dreamingPipelineDailyAt
+  ) {
+    delete nextPluginCfg.dreamingPipelineCron;
+  }
+
   const nextSlots: Record<string, unknown> = { ...slots };
   if (answers.memorySlotExclusive) {
     nextSlots.memory = "memok-ai";

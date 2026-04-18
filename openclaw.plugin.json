@@ -33,7 +33,7 @@
     "dreamingPipelineDailyAt": {
       "label": "每日发梦时间",
       "placeholder": "03:00",
-      "help": "给不熟 cron 的用户用：填写 HH:mm。仅在 dreamingPipelineCron 留空时生效。"
+      "help": "填写每日 HH:mm 即可；不必写 cron。未填 dreamingPipelineCron 时由该时间生成调度。"
     }
   },
   "configSchema": {
@@ -246,12 +246,11 @@
       "dreamingPipelineDailyAt": {
         "type": "string",
         "pattern": "^(?:[01]\\d|2[0-3]):[0-5]\\d$",
-        "description": "每日触发时间（HH:mm）。仅在 dreamingPipelineCron 留空时生效；例如 03:00"
+        "description": "每日触发时间（HH:mm）。不设 dreamingPipelineCron 时由本字段生成 cron；两者都未设时插件内默认 03:00。"
       },
       "dreamingPipelineCron": {
         "type": "string",
-        "description": "5 段 cron 表达式（优先级高于 dreamingPipelineDailyAt）；默认每天 03:00（0 3 * * *）",
-        "default": "0 3 * * *"
+        "description": "可选：5 段 cron（优先级高于 dreamingPipelineDailyAt）。一般留空，仅用上面的 HH:mm 即可；不设时不在配置里注入默认 cron。"
       },
       "dreamingPipelineTimezone": {
         "type": "string",

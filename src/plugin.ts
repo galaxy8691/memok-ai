@@ -94,16 +94,30 @@ export default definePluginEntry({
     const entry = api.config.plugins?.entries?.["memok-ai"] as
       | MemokPluginEntry
       | undefined;
-    // Merge order matters: `api.pluginConfig` often carries manifest/schema defaults
-    // (e.g. dreamingPipelineCron default "0 3 * * *"). User values in
-    // `plugins.entries.memok-ai.config` must win, so apply defaults first.
+    const manifestDefaults =
+      api.pluginConfig && typeof api.pluginConfig === "object"
+        ? (api.pluginConfig as Record<string, unknown>)
+        : {};
+    const entryConfig =
+      entry?.config && typeof entry.config === "object"
+        ? (entry.config as Record<string, unknown>)
+        : {};
+    const baseDefaults = { ...manifestDefaults };
+    // Manifest default `dreamingPipelineCron` is "0 3 * * *". If the user only set
+    // `dreamingPipelineDailyAt` in openclaw.json (wizard), omitting cron must not
+    // inherit that default — otherwise dailyAt is silently ignored.
+    const userCron = entryConfig.dreamingPipelineCron;
+    const hasUserCron =
+      typeof userCron === "string" && userCron.trim().length > 0;
+    const hasUserDailyAt =
+      typeof entryConfig.dreamingPipelineDailyAt === "string" &&
+      entryConfig.dreamingPipelineDailyAt.trim().length > 0;
+    if (hasUserDailyAt && !hasUserCron) {
+      delete baseDefaults.dreamingPipelineCron;
+    }
     const pluginCfg = {
-      ...(api.pluginConfig && typeof api.pluginConfig === "object"
-        ? api.pluginConfig
-        : {}),
-      ...(entry?.config && typeof entry.config === "object"
-        ? entry.config
-        : {}),
+      ...baseDefaults,
+      ...entryConfig,
     } as MemokConfig;
 
     if (entry?.enabled === false || pluginCfg.enabled === false) {
