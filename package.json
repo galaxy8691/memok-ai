@@ -42,13 +42,21 @@
     "croner": "^10.0.1",
     "dotenv": "^17.4.2",
     "openai": "^6.34.0",
-    "openclaw": "^2026.4.15",
     "zod": "^4.3.6"
+  },
+  "peerDependencies": {
+    "openclaw": ">=2026.3.24"
+  },
+  "peerDependenciesMeta": {
+    "openclaw": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.12",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^25.6.0",
+    "openclaw": "^2026.4.15",
     "tsx": "^4.21.0",
     "typescript": "^6.0.3",
     "vitest": "^4.1.4"
