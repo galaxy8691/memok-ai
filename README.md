@@ -67,7 +67,29 @@ npm run build
 npm run dev -- --help
 ```
 
-### 2) Use as OpenClaw plugin
+### 2) Install from npm (use as a library)
+
+Published package: [`memok-ai` on npm](https://www.npmjs.com/package/memok-ai).
+
+```bash
+npm install memok-ai
+```
+
+```ts
+// Full API surface (pipelines, SQLite helpers, types)
+import { articleWordPipelineV2 } from "memok-ai";
+
+// Stable subset for gateways / OpenClaw-style hosts
+import { runDreamingPipelineFromDb, articleWordPipelineSaveDb } from "memok-ai/bridge";
+```
+
+- Requires **Node.js ≥20** (same as this repo).
+- **`better-sqlite3`** is a native dependency: first install may compile or download prebuilds (similar to cloning this repo and running `npm install`).
+- Configure LLM access at **runtime** with normal environment variables (for example `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `MEMOK_LLM_MODEL`), or call `loadProjectEnv()` from `memok-ai/bridge` if you intentionally want to hydrate from a project-root `.env` in development.
+
+The OpenClaw plugin repo may list this package under an alias such as `memok-ai-core`; the registry name remains **`memok-ai`**.
+
+### 3) Use as OpenClaw plugin
 
 Install via script (recommended):
 

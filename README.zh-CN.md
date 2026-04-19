@@ -78,7 +78,27 @@ npm run build
 npm run dev -- --help
 ```
 
-### 2）作为 OpenClaw 插件使用
+### 2）通过 npm 安装为项目依赖
+
+npm 包名：**[`memok-ai`](https://www.npmjs.com/package/memok-ai)**（与 registry 一致；OpenClaw 插件仓库里可能用别名 **`memok-ai-core`** 写在 `package.json` 中，安装来源仍是本包）。
+
+```bash
+npm install memok-ai
+```
+
+```ts
+// 主入口：流水线、SQLite 工具、类型等
+import { articleWordPipelineV2 } from "memok-ai";
+
+// 网关 / OpenClaw 类宿主常用的稳定子集
+import { runDreamingPipelineFromDb, articleWordPipelineSaveDb } from "memok-ai/bridge";
+```
+
+- 需要 **Node.js ≥20**（与本仓库一致）。
+- 依赖 **`better-sqlite3`**（原生模块）：首次安装可能触发预编译下载或本地编译，耗时与「克隆本仓库后 `npm install`」类似。
+- LLM 相关配置建议在**运行时**通过环境变量提供（如 `OPENAI_API_KEY`、`OPENAI_BASE_URL`、`MEMOK_LLM_MODEL`）；若在开发环境希望从项目根 `.env` 注入进程环境，可调用 `memok-ai/bridge` 导出的 `loadProjectEnv()`（可选）。
+
+### 3）作为 OpenClaw 插件使用
 
 推荐脚本安装：
 
