@@ -16,8 +16,12 @@ import {
   ArticleCoreWordsNomalizedDataSchema,
   ArticleMemorySentencesDataSchema,
 } from "./article-word-pipeline/v2/schemas.js";
+import {
+  buildPipelineContext,
+  memokPipelineConfigFromProcessEnv,
+} from "./config/memokPipelineConfig.js";
+import { dreamingPipeline } from "./dreaming-pipeline/dreamingPipeline.js";
 import { runPredreamDecayFromDb } from "./dreaming-pipeline/predream-pipeline/index.js";
-import { runDreamingPipelineFromDb } from "./dreaming-pipeline/runDreamingPipelineFromDb.js";
 import {
   runStoryWordSentenceBucketsFromDb,
   runStoryWordSentencePipelineFromDb,
@@ -36,6 +40,11 @@ function readUtf8(path: string): string {
 
 function printJson(data: unknown): void {
   process.stdout.write(`${JSON.stringify(data, null, 2)}\n`);
+}
+
+/** CLI：从项目根 `.env`（经 {@link memokPipelineConfigFromProcessEnv}）+ `process.env` 组装显式 {@link PipelineLlmContext} */
+function pipelineContextFromProjectEnv() {
+  return buildPipelineContext(memokPipelineConfigFromProcessEnv());
 }
 
 function exitValidation(e: unknown, msg: string): never {
@@ -60,7 +69,8 @@ program
   .argument("<article>", "Path to article text file")
   .action(async (articlePath: string) => {
     const text = readUtf8(articlePath);
-    const out = await analyzeArticleCoreWords(text);
+    const ctx = pipelineContextFromProjectEnv();
+    const out = await analyzeArticleCoreWords(text, { ctx });
     printJson(out);
   });
 
@@ -78,7 +88,8 @@ program
         "Failed to parse ArticleCoreWordsData (expected core_words string array)",
       );
     }
-    const out = await normalizeArticleCoreWordsSynonyms(data);
+    const ctx = pipelineContextFromProjectEnv();
+    const out = await normalizeArticleCoreWordsSynonyms(data, { ctx });
     printJson(out);
   });
 
@@ -87,7 +98,8 @@ program
   .argument("<article>", "Path to article text file")
   .action(async (articlePath: string) => {
     const text = readUtf8(articlePath);
-    const out = await analyzeArticleMemorySentences(text);
+    const ctx = pipelineContextFromProjectEnv();
+    const out = await analyzeArticleMemorySentences(text, { ctx });
     printJson(out);
   });
 
@@ -135,7 +147,8 @@ program
   .argument("<article>", "Path to article text file")
   .action(async (articlePath: string) => {
     const text = readUtf8(articlePath);
-    const [combined, normalized] = await articleWordPipelineV2(text);
+    const ctx = pipelineContextFromProjectEnv();
+    const [combined, normalized] = await articleWordPipelineV2(text, { ctx });
     process.stdout.write(
       `${dumpArticleSentenceCoreCombineTupleV2Json(combined, normalized)}\n`,
     );
@@ -163,7 +176,10 @@ program
           opts.longTermFraction !== undefined && opts.longTermFraction !== ""
             ? Number.parseFloat(opts.longTermFraction)
             : undefined;
-        const out = extractMemorySentencesByWordSample(resolvePath(opts.db), {
+        const baseCfg = memokPipelineConfigFromProcessEnv();
+        const out = extractMemorySentencesByWordSample({
+          ...baseCfg,
+          dbPath: resolvePath(opts.db),
           fraction: Number.isFinite(fraction) ? fraction : 0.2,
           longTermFraction:
             longTermFraction !== undefined && Number.isFinite(longTermFraction)
@@ -194,9 +210,11 @@ async function runStoryWordSentenceBucketsCli(opts: {
       : 0.2;
   const fraction =
     Number.isFinite(rawFraction) && rawFraction > 0 ? rawFraction : 0.2;
+  const ctx = pipelineContextFromProjectEnv();
   const out = await runStoryWordSentenceBucketsFromDb(resolvePath(opts.db), {
     maxWords,
     fraction,
+    ctx,
   });
   printJson(out);
 }
@@ -236,11 +254,13 @@ async function runStoryWordSentencePipelineCli(opts: {
     rawMaxRuns !== undefined && Number.isFinite(rawMaxRuns) && rawMaxRuns > 0
       ? rawMaxRuns
       : undefined;
+  const ctx = pipelineContextFromProjectEnv();
   const out = await runStoryWordSentencePipelineFromDb(resolvePath(opts.db), {
     maxWords,
     fraction,
     minRuns,
     maxRuns,
+    ctx,
   });
   process.stderr.write(
     `[memok-ai] story-word-sentence-pipeline: plannedRuns=${out.plannedRuns} (range ${out.minRuns}–${out.maxRuns})\n`,
@@ -283,7 +303,13 @@ async function runDreamingPipelineCli(opts: {
     rawMaxRuns !== undefined && Number.isFinite(rawMaxRuns) && rawMaxRuns > 0
       ? rawMaxRuns
       : undefined;
-  const out = await runDreamingPipelineFromDb(resolvePath(opts.db), {
+  const baseCfg = memokPipelineConfigFromProcessEnv();
+  const out = await dreamingPipeline({
+    ...baseCfg,
+    dbPath: resolvePath(opts.db),
+    dreamLogWarn: (m) => {
+      process.stderr.write(`${m}\n`);
+    },
     maxWords,
     fraction,
     minRuns,

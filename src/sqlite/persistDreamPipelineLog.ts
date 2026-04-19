@@ -1,7 +1,7 @@
 import { openSqlite } from "./openSqlite.js";
 
 /**
- * 在 `dream_logs` 表追加一行（`runDreamingPipelineFromDb` 成功或失败后调用）。
+ * 在 `dream_logs` 表追加一行（`dreamingPipeline` 成功或失败后调用）。
  * 与 OpenClaw 插件曾使用的 schema 一致。
  */
 export function persistDreamPipelineLogToDb(params: {

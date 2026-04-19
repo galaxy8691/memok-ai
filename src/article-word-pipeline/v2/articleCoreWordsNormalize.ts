@@ -1,7 +1,13 @@
-import OpenAI from "openai";
+import type OpenAI from "openai";
+import {
+  createOpenAIClient,
+  memokPipelineConfigFromProcessEnv,
+  type PipelineLlmContext,
+} from "../../config/memokPipelineConfig.js";
 import {
   isDeepseekCompatibleBaseUrl,
-  loadProjectEnv,
+  isDeepseekCompatibleBaseUrlFromUrl,
+  preferJsonObjectOnlyFromConfig,
   runParseOrJson,
 } from "../../llm/openaiCompat.js";
 import {
@@ -61,8 +67,11 @@ function normalizeOutputTokenBudget(): number {
   return Math.max(256, Math.min(n, 128_000));
 }
 
-function effectiveNormalizeOutputBudget(forDeepseek: boolean): number {
-  const cap = normalizeOutputTokenBudget();
+function effectiveNormalizeOutputBudget(
+  forDeepseek: boolean,
+  capOverride?: number,
+): number {
+  const cap = capOverride ?? normalizeOutputTokenBudget();
   if (forDeepseek) {
     return Math.max(1, Math.min(cap, DEEPSEEK_CHAT_MAX_TOKENS_CAP));
   }
@@ -181,6 +190,11 @@ async function articleCoreWordsNormalizeLlm(
   oc: OpenAI,
   payload: { core_words: string[] },
   resolvedModel: string,
+  routing?: {
+    deepseek: boolean;
+    preferJsonObjectOnly?: boolean;
+    tokenCap?: number;
+  },
 ): Promise<ArticleCoreWordsNomalizedData> {
   const userBody = `以下为 core_words（JSON，已按首次出现顺序去重）。请输出 nomalized，规则见系统提示。\n${JSON.stringify(payload, null, 0)}`;
   const messagesParse = [
@@ -200,8 +214,8 @@ async function articleCoreWordsNormalizeLlm(
       content: userBody + JSON_MODE_USER_SUFFIX_ARTICLE_CORE_WORDS_NORMALIZE,
     },
   ];
-  const deepseek = isDeepseekCompatibleBaseUrl();
-  const budget = effectiveNormalizeOutputBudget(deepseek);
+  const deepseek = routing?.deepseek ?? isDeepseekCompatibleBaseUrl();
+  const budget = effectiveNormalizeOutputBudget(deepseek, routing?.tokenCap);
   return runParseOrJson({
     client: oc,
     model: resolvedModel,
@@ -210,25 +224,59 @@ async function articleCoreWordsNormalizeLlm(
     schema: ArticleCoreWordsNomalizedDataSchema,
     responseName: "ArticleCoreWordsNomalizedData",
     ...(deepseek ? { maxTokens: budget } : { maxCompletionTokens: budget }),
+    ...(routing?.preferJsonObjectOnly !== undefined
+      ? { preferJsonObjectOnly: routing.preferJsonObjectOnly }
+      : {}),
   });
 }
 
 export async function normalizeArticleCoreWordsSynonyms(
   data: ArticleCoreWordsData,
-  opts?: { model?: string; client?: OpenAI },
+  opts?: { model?: string; client?: OpenAI; ctx?: PipelineLlmContext },
 ): Promise<ArticleCoreWordsNomalizedData> {
   const ordered = uniqueCoreWordsOrdered([...data.core_words]);
   if (ordered.length === 0) {
     return { nomalized: [] };
   }
-  loadProjectEnv();
-  const resolvedModel = resolveModel(opts?.model);
   const payload = { core_words: ordered };
-  const client = opts?.client ?? new OpenAI();
+  if (opts?.ctx) {
+    const resolvedModel = (
+      opts.model?.trim() || opts.ctx.config.llmModel
+    ).trim();
+    const deepseek = isDeepseekCompatibleBaseUrlFromUrl(
+      opts.ctx.config.openaiBaseUrl,
+    );
+    const tokenCap = Math.max(
+      256,
+      Math.min(opts.ctx.config.coreWordsNormalizeMaxOutputTokens, 128_000),
+    );
+    const raw = await articleCoreWordsNormalizeLlm(
+      opts.ctx.client,
+      payload,
+      resolvedModel,
+      {
+        deepseek,
+        preferJsonObjectOnly: preferJsonObjectOnlyFromConfig(opts.ctx.config),
+        tokenCap,
+      },
+    );
+    return mergeLlmWithCoverage(raw, ordered);
+  }
+  const cfg = memokPipelineConfigFromProcessEnv();
+  const resolvedModel = resolveModel(opts?.model);
+  const client = opts?.client ?? createOpenAIClient(cfg);
   const raw = await articleCoreWordsNormalizeLlm(
     client,
     payload,
     resolvedModel,
+    {
+      deepseek: isDeepseekCompatibleBaseUrlFromUrl(cfg.openaiBaseUrl),
+      preferJsonObjectOnly: preferJsonObjectOnlyFromConfig(cfg),
+      tokenCap: Math.max(
+        256,
+        Math.min(cfg.coreWordsNormalizeMaxOutputTokens, 128_000),
+      ),
+    },
   );
   return mergeLlmWithCoverage(raw, ordered);
 }

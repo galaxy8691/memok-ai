@@ -1,8 +1,13 @@
-import OpenAI from "openai";
+import type OpenAI from "openai";
 import { z } from "zod";
 import {
-  isDeepseekCompatibleBaseUrl,
-  loadProjectEnv,
+  createOpenAIClient,
+  memokPipelineConfigFromProcessEnv,
+  type PipelineLlmContext,
+} from "../../config/memokPipelineConfig.js";
+import {
+  isDeepseekCompatibleBaseUrlFromUrl,
+  preferJsonObjectOnlyFromConfig,
   runParseOrJson,
 } from "../../llm/openaiCompat.js";
 
@@ -159,7 +164,13 @@ export function validateSentenceRelevanceOutput(
 
 async function scoreOneBatch(
   parsedInput: SentenceRelevanceInput,
-  opts: { client: OpenAI; model: string; budget: number; deepseek: boolean },
+  opts: {
+    client: OpenAI;
+    model: string;
+    budget: number;
+    deepseek: boolean;
+    preferJsonObjectOnly?: boolean;
+  },
 ): Promise<SentenceRelevanceOutput> {
   const userBody = `请对以下输入逐句评分并按指定 JSON 输出：\n${JSON.stringify(parsedInput)}`;
   const parseArgs = {
@@ -184,6 +195,9 @@ async function scoreOneBatch(
     ...(opts.deepseek
       ? { maxTokens: opts.budget }
       : { maxCompletionTokens: opts.budget }),
+    ...(opts.preferJsonObjectOnly !== undefined
+      ? { preferJsonObjectOnly: opts.preferJsonObjectOnly }
+      : {}),
   };
 
   const attempts = maxLlmAttempts();
@@ -209,16 +223,72 @@ async function scoreOneBatch(
 
 export async function scoreSentenceRelevance(
   input: SentenceRelevanceInput,
-  opts?: { client?: OpenAI; model?: string; maxTokens?: number },
+  opts?: {
+    client?: OpenAI;
+    model?: string;
+    maxTokens?: number;
+    ctx?: PipelineLlmContext;
+  },
 ): Promise<SentenceRelevanceOutput> {
-  loadProjectEnv();
   const parsedInput = SentenceRelevanceInputSchema.parse(input);
+  if (opts?.ctx) {
+    const model = (opts.model?.trim() || opts.ctx.config.llmModel).trim();
+    const client = opts.ctx.client;
+    const deepseek = isDeepseekCompatibleBaseUrlFromUrl(
+      opts.ctx.config.openaiBaseUrl,
+    );
+    const budget = effectiveOutputBudget(
+      deepseek,
+      opts.maxTokens ?? opts.ctx.config.articleSentencesMaxOutputTokens,
+    );
+    const preferJson = preferJsonObjectOnlyFromConfig(opts.ctx.config);
+    if (parsedInput.sentences.length <= MAX_SENTENCES_PER_BATCH) {
+      return scoreOneBatch(parsedInput, {
+        client,
+        model,
+        budget,
+        deepseek,
+        preferJsonObjectOnly: preferJson,
+      });
+    }
+    const merged: SentenceRelevanceOutput["sentences"] = [];
+    for (
+      let i = 0;
+      i < parsedInput.sentences.length;
+      i += MAX_SENTENCES_PER_BATCH
+    ) {
+      const chunkInput: SentenceRelevanceInput = {
+        story: parsedInput.story,
+        sentences: parsedInput.sentences.slice(i, i + MAX_SENTENCES_PER_BATCH),
+      };
+      const chunkOut = await scoreOneBatch(chunkInput, {
+        client,
+        model,
+        budget,
+        deepseek,
+        preferJsonObjectOnly: preferJson,
+      });
+      merged.push(...chunkOut.sentences);
+    }
+    return validateSentenceRelevanceOutput(parsedInput, { sentences: merged });
+  }
+  const cfg = memokPipelineConfigFromProcessEnv();
   const model = resolveModel(opts?.model);
-  const client = opts?.client ?? new OpenAI();
-  const deepseek = isDeepseekCompatibleBaseUrl();
-  const budget = effectiveOutputBudget(deepseek, opts?.maxTokens);
+  const client = opts?.client ?? createOpenAIClient(cfg);
+  const deepseek = isDeepseekCompatibleBaseUrlFromUrl(cfg.openaiBaseUrl);
+  const budget = effectiveOutputBudget(
+    deepseek,
+    opts?.maxTokens ?? cfg.articleSentencesMaxOutputTokens,
+  );
+  const preferJson = preferJsonObjectOnlyFromConfig(cfg);
   if (parsedInput.sentences.length <= MAX_SENTENCES_PER_BATCH) {
-    return scoreOneBatch(parsedInput, { client, model, budget, deepseek });
+    return scoreOneBatch(parsedInput, {
+      client,
+      model,
+      budget,
+      deepseek,
+      preferJsonObjectOnly: preferJson,
+    });
   }
 
   const merged: SentenceRelevanceOutput["sentences"] = [];
@@ -236,6 +306,7 @@ export async function scoreSentenceRelevance(
       model,
       budget,
       deepseek,
+      preferJsonObjectOnly: preferJson,
     });
     merged.push(...chunkOut.sentences);
   }

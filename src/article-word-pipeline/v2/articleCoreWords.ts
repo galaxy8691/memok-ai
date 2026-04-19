@@ -1,5 +1,13 @@
-import OpenAI from "openai";
-import { loadProjectEnv, runParseOrJson } from "../../llm/openaiCompat.js";
+import type OpenAI from "openai";
+import {
+  createOpenAIClient,
+  memokPipelineConfigFromProcessEnv,
+  type PipelineLlmContext,
+} from "../../config/memokPipelineConfig.js";
+import {
+  preferJsonObjectOnlyFromConfig,
+  runParseOrJson,
+} from "../../llm/openaiCompat.js";
 import {
   type ArticleCoreWordsData,
   ArticleCoreWordsDataSchema,
@@ -89,6 +97,7 @@ async function articleCoreWordsLlmFields(
   oc: OpenAI,
   strippedArticle: string,
   resolvedModel: string,
+  parsePrefs?: { preferJsonObjectOnly?: boolean },
 ): Promise<ArticleCoreWordsData> {
   const budget = budgetUserNote(strippedArticle.length);
   const userBody = `${budget}\n\n--- 正文如下 ---\n\n${strippedArticle}`;
@@ -113,21 +122,37 @@ async function articleCoreWordsLlmFields(
     messagesJson,
     schema: ArticleCoreWordsDataSchema,
     responseName: "ArticleCoreWordsLLMFields",
+    ...parsePrefs,
   });
 }
 
 export async function analyzeArticleCoreWords(
   text: string,
-  opts?: { model?: string; client?: OpenAI },
+  opts?: { model?: string; client?: OpenAI; ctx?: PipelineLlmContext },
 ): Promise<ArticleCoreWordsData> {
-  loadProjectEnv();
   const stripped = text.trim();
   if (!stripped) {
     throw new Error("text must be non-empty after stripping whitespace");
   }
+  if (opts?.ctx) {
+    const model = (opts.model?.trim() || opts.ctx.config.llmModel).trim();
+    const fields = await articleCoreWordsLlmFields(
+      opts.ctx.client,
+      stripped,
+      model,
+      {
+        preferJsonObjectOnly: preferJsonObjectOnlyFromConfig(opts.ctx.config),
+      },
+    );
+    const words = splitCompoundCoreWords([...fields.core_words]);
+    return ArticleCoreWordsDataSchema.parse({ core_words: words });
+  }
+  const cfg = memokPipelineConfigFromProcessEnv();
   const model = resolveModel(opts?.model);
-  const client = opts?.client ?? new OpenAI();
-  const fields = await articleCoreWordsLlmFields(client, stripped, model);
+  const client = opts?.client ?? createOpenAIClient(cfg);
+  const fields = await articleCoreWordsLlmFields(client, stripped, model, {
+    preferJsonObjectOnly: preferJsonObjectOnlyFromConfig(cfg),
+  });
   const words = splitCompoundCoreWords([...fields.core_words]);
   return ArticleCoreWordsDataSchema.parse({ core_words: words });
 }

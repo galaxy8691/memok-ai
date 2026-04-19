@@ -1,6 +1,9 @@
+import type { MemokPipelineConfig } from "../config/memokPipelineConfig.js";
 import { openSqlite } from "./openSqlite.js";
 
-export type ApplySentenceUsageFeedbackOptions = {
+/** {@link applySentenceUsageFeedback} 入参：显式流水线配置 + 句子 id 列表 + 可选「视为今日」日期 */
+export type ApplySentenceUsageFeedbackInput = MemokPipelineConfig & {
+  sentenceIds: number[];
   /** 与 `awpV2Import` 一致，默认 `YYYY-MM-DD`（UTC） */
   lastEditDate?: string;
 };
@@ -12,15 +15,14 @@ export type ApplySentenceUsageFeedbackOptions = {
  * - 若原 `last_edit_date` 不是今天：仅本分支 → `duration` +1，`duration_change_times` = 1（当日第 1 次变更）；
  * - 否则若已是今天且 `duration_change_times` < 3：`duration` +1，`duration_change_times` +1；
  * - 否则（今日已满 3 次）：`duration` 不变（`weight` 仍 +1）。
+ * 仅使用 `input.dbPath` 与 `sentenceIds` / `lastEditDate`；其余 {@link MemokPipelineConfig} 字段不参与本函数逻辑。
  */
 export function applySentenceUsageFeedback(
-  dbPath: string,
-  sentenceIds: number[],
-  opts?: ApplySentenceUsageFeedbackOptions,
+  input: ApplySentenceUsageFeedbackInput,
 ): { updatedCount: number } {
   const ids = [
     ...new Set(
-      sentenceIds.filter(
+      input.sentenceIds.filter(
         (n) => typeof n === "number" && Number.isInteger(n) && n > 0,
       ),
     ),
@@ -28,8 +30,8 @@ export function applySentenceUsageFeedback(
   if (ids.length === 0) {
     return { updatedCount: 0 };
   }
-  const dateStr = opts?.lastEditDate ?? new Date().toISOString().slice(0, 10);
-  const db = openSqlite(dbPath);
+  const dateStr = input.lastEditDate ?? new Date().toISOString().slice(0, 10);
+  const db = openSqlite(input.dbPath);
   try {
     db.pragma("foreign_keys = ON");
     const stmt = db.prepare(

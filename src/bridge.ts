@@ -2,23 +2,27 @@
  * Stable surface for the OpenClaw plugin package (`memok-ai-openclaw`).
  * Import only from `memok-ai-core/bridge` (or published `memok-ai/bridge`).
  * This core package does not ship plugin gateway code; the plugin lives in the separate repo.
- * `runDreamingPipelineFromDb` writes `dream_logs` in core after each run (see opts `skipDreamLog` / `dreamLogWarn`).
+ * {@link dreamingPipeline} always writes `dream_logs` after success or failure; `dreamLogWarn` on {@link DreamingPipelineConfig} is required for persist failures.
  * Transcript recall-marker stripping (`@@@MEMOK_RECALL_*@@@` / 旧版标题) lives in the OpenClaw plugin, not here.
  * OpenClaw heartbeat / reminder template scrubbing is also plugin-owned (before calling core or after consuming pipeline output).
  */
 
+export type { ArticleWordPipelineSaveDbOptions } from "./article-word-pipeline/v2/articleWordPipeline.js";
+export { articleWordPipeline } from "./article-word-pipeline/v2/articleWordPipeline.js";
+export type { MemokPipelineConfig } from "./config/memokPipelineConfig.js";
+export { memokPipelineConfigFromProcessEnv } from "./config/memokPipelineConfig.js";
 export {
+  type DreamingPipelineConfig,
   type DreamingPipelineResult,
-  type RunDreamingPipelineFromDbOpts,
-  runDreamingPipelineFromDb,
-} from "./dreaming-pipeline/runDreamingPipelineFromDb.js";
-export { loadProjectEnv } from "./llm/openaiCompat.js";
-export type { ArticleWordPipelineSaveDbOptions } from "./memory/articleWordPipelineSaveDb.js";
-export { articleWordPipelineSaveDb } from "./memory/articleWordPipelineSaveDb.js";
+  dreamingPipeline,
+} from "./dreaming-pipeline/dreamingPipeline.js";
 export {
-  type ExtractMemorySentencesOpts,
+  type ExtractMemorySentencesByWordSampleInput,
   extractMemorySentencesByWordSample,
   type MemoryExtractedSentence,
   type MemoryExtractResponse,
 } from "./read-memory-pipeline/extractMemorySentencesByWordSample.js";
-export { applySentenceUsageFeedback } from "./sqlite/applySentenceUsageFeedback.js";
+export {
+  type ApplySentenceUsageFeedbackInput,
+  applySentenceUsageFeedback,
+} from "./sqlite/applySentenceUsageFeedback.js";

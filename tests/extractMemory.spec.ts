@@ -1,9 +1,28 @@
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import Database from "better-sqlite3";
 import { describe, expect, it } from "vitest";
+import type { MemokPipelineConfig } from "../src/config/memokPipelineConfig.js";
 import { extractMemorySentencesByWordSample } from "../src/read-memory-pipeline/extractMemorySentencesByWordSample.js";
 
-function createFixtureDb(): Database.Database {
-  const db = new Database(":memory:");
+function dummyMemokConfig(dbPath: string): MemokPipelineConfig {
+  return {
+    dbPath,
+    openaiApiKey: "sk-test-unused-for-extract-memory",
+    openaiBaseUrl: undefined,
+    llmModel: "gpt-4o-mini",
+    llmMaxWorkers: 1,
+    articleSentencesMaxOutputTokens: 8192,
+    coreWordsNormalizeMaxOutputTokens: 32768,
+    sentenceMergeMaxCompletionTokens: 2048,
+  };
+}
+
+function createFixtureDir(): { dir: string; dbPath: string } {
+  const dir = mkdtempSync(join(tmpdir(), "memok-extract-spec-"));
+  const dbPath = join(dir, "fixture.sqlite");
+  const db = new Database(dbPath);
   db.exec(`
     CREATE TABLE words (id INTEGER PRIMARY KEY AUTOINCREMENT, word TEXT UNIQUE);
     CREATE TABLE normal_words (id INTEGER PRIMARY KEY AUTOINCREMENT, word TEXT UNIQUE);
@@ -42,12 +61,15 @@ function createFixtureDb(): Database.Database {
       "INSERT INTO sentence_to_normal_link (normal_id, sentence_id, weight) VALUES (?, ?, 1)",
     ).run(nid, s.id);
   }
-  return db;
+  db.close();
+  return { dir, dbPath };
 }
 
 describe("extractMemorySentencesByWordSample", () => {
   it("returns both arrays empty when words table is empty", () => {
-    const db = new Database(":memory:");
+    const dir = mkdtempSync(join(tmpdir(), "memok-extract-spec-"));
+    const dbPath = join(dir, "empty.sqlite");
+    const db = new Database(dbPath);
     db.exec(`
       CREATE TABLE words (id INTEGER PRIMARY KEY AUTOINCREMENT, word TEXT UNIQUE);
       CREATE TABLE normal_words (id INTEGER PRIMARY KEY AUTOINCREMENT, word TEXT UNIQUE);
@@ -55,15 +77,22 @@ describe("extractMemorySentencesByWordSample", () => {
       CREATE TABLE sentences (id INTEGER PRIMARY KEY AUTOINCREMENT, sentence TEXT, weight INTEGER, duration INTEGER, last_edit_date TEXT, is_short_term INTEGER, duration_change_times INTEGER NOT NULL DEFAULT 0);
       CREATE TABLE sentence_to_normal_link (normal_id INTEGER, sentence_id INTEGER, weight INTEGER);
     `);
-    const out = extractMemorySentencesByWordSample(db);
-    expect(out).toEqual({ sentences: [] });
     db.close();
+    try {
+      const out = extractMemorySentencesByWordSample(dummyMemokConfig(dbPath));
+      expect(out).toEqual({ sentences: [] });
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
-  it("merges short_term then weighted long_term sample in single sentences array", () => {
-    const db = createFixtureDb();
+  it("merges short_term then weighted long_term sample in single sentences array", {
+    timeout: 15_000,
+  }, () => {
+    const { dir, dbPath } = createFixtureDir();
     try {
-      const out = extractMemorySentencesByWordSample(db, {
+      const out = extractMemorySentencesByWordSample({
+        ...dummyMemokConfig(dbPath),
         fraction: 1,
         longTermFraction: 0.2,
       });
@@ -87,12 +116,14 @@ describe("extractMemorySentencesByWordSample", () => {
         expect(s.is_short_term).toBe(false);
       }
     } finally {
-      db.close();
+      rmSync(dir, { recursive: true, force: true });
     }
   });
 
   it("uses k = max(1, round(n * fraction)) for word sample count", () => {
-    const db = new Database(":memory:");
+    const dir = mkdtempSync(join(tmpdir(), "memok-extract-spec-"));
+    const dbPath = join(dir, "k.sqlite");
+    const db = new Database(dbPath);
     db.exec(`
       CREATE TABLE words (id INTEGER PRIMARY KEY AUTOINCREMENT, word TEXT UNIQUE);
       CREATE TABLE normal_words (id INTEGER PRIMARY KEY AUTOINCREMENT, word TEXT UNIQUE);
@@ -122,11 +153,18 @@ describe("extractMemorySentencesByWordSample", () => {
     db.prepare(
       "INSERT INTO sentence_to_normal_link (normal_id, sentence_id, weight) VALUES (?, ?, 1)",
     ).run(nid, sid);
-    const out = extractMemorySentencesByWordSample(db, { fraction: 0.2 });
-    expect(out.sentences.length).toBe(1);
-    expect(out.sentences[0].is_short_term).toBe(true);
-    expect(out.sentences[0].matched_word.normal_word).toBe("N");
-    expect(["w0", "w1", "w2"]).toContain(out.sentences[0].matched_word.word);
     db.close();
+    try {
+      const out = extractMemorySentencesByWordSample({
+        ...dummyMemokConfig(dbPath),
+        fraction: 0.2,
+      });
+      expect(out.sentences.length).toBe(1);
+      expect(out.sentences[0].is_short_term).toBe(true);
+      expect(out.sentences[0].matched_word.normal_word).toBe("N");
+      expect(["w0", "w1", "w2"]).toContain(out.sentences[0].matched_word.word);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

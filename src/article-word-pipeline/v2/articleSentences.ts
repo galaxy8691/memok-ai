@@ -1,7 +1,13 @@
-import OpenAI from "openai";
+import type OpenAI from "openai";
+import {
+  createOpenAIClient,
+  memokPipelineConfigFromProcessEnv,
+  type PipelineLlmContext,
+} from "../../config/memokPipelineConfig.js";
 import {
   isDeepseekCompatibleBaseUrl,
-  loadProjectEnv,
+  isDeepseekCompatibleBaseUrlFromUrl,
+  preferJsonObjectOnlyFromConfig,
   runParseOrJson,
 } from "../../llm/openaiCompat.js";
 import { isEnglishDominantText } from "../../utils/sentenceTextLimits.js";
@@ -72,8 +78,11 @@ function outputTokenBudget(): number {
   return Math.max(512, Math.min(n, 128_000));
 }
 
-function effectiveOutputBudget(forDeepseek: boolean): number {
-  const cap = outputTokenBudget();
+function effectiveOutputBudget(
+  forDeepseek: boolean,
+  capOverride?: number,
+): number {
+  const cap = capOverride ?? outputTokenBudget();
   if (forDeepseek) {
     return Math.max(1, Math.min(cap, DEEPSEEK_CHAT_MAX_TOKENS_CAP));
   }
@@ -177,6 +186,11 @@ async function articleMemorySentencesLlm(
   oc: OpenAI,
   strippedArticle: string,
   resolvedModel: string,
+  routing?: {
+    deepseek: boolean;
+    preferJsonObjectOnly?: boolean;
+    tokenCap?: number;
+  },
 ): Promise<ArticleMemorySentencesData> {
   const userBody = `--- 正文如下 ---\n\n${strippedArticle}`;
   const messagesParse = [
@@ -193,8 +207,8 @@ async function articleMemorySentencesLlm(
       content: userBody + JSON_MODE_USER_SUFFIX_ARTICLE_SENTENCES,
     },
   ];
-  const deepseek = isDeepseekCompatibleBaseUrl();
-  const budget = effectiveOutputBudget(deepseek);
+  const deepseek = routing?.deepseek ?? isDeepseekCompatibleBaseUrl();
+  const budget = effectiveOutputBudget(deepseek, routing?.tokenCap);
   const raw = await runParseOrJson({
     client: oc,
     model: resolvedModel,
@@ -203,22 +217,49 @@ async function articleMemorySentencesLlm(
     schema: ArticleMemorySentencesDataSchema,
     responseName: "ArticleMemorySentencesData",
     ...(deepseek ? { maxTokens: budget } : { maxCompletionTokens: budget }),
+    ...(routing?.preferJsonObjectOnly !== undefined
+      ? { preferJsonObjectOnly: routing.preferJsonObjectOnly }
+      : {}),
   });
   return postProcessClamp(raw);
 }
 
 export async function analyzeArticleMemorySentences(
   text: string,
-  opts?: { model?: string; client?: OpenAI },
+  opts?: { model?: string; client?: OpenAI; ctx?: PipelineLlmContext },
 ): Promise<ArticleMemorySentencesData> {
-  loadProjectEnv();
   const stripped = text.trim();
   if (!stripped) {
     throw new Error("text must be non-empty after stripping whitespace");
   }
+  if (opts?.ctx) {
+    const resolvedModel = (
+      opts.model?.trim() || opts.ctx.config.llmModel
+    ).trim();
+    const deepseek = isDeepseekCompatibleBaseUrlFromUrl(
+      opts.ctx.config.openaiBaseUrl,
+    );
+    const tokenCap = Math.max(
+      512,
+      Math.min(opts.ctx.config.articleSentencesMaxOutputTokens, 128_000),
+    );
+    return articleMemorySentencesLlm(opts.ctx.client, stripped, resolvedModel, {
+      deepseek,
+      preferJsonObjectOnly: preferJsonObjectOnlyFromConfig(opts.ctx.config),
+      tokenCap,
+    });
+  }
+  const cfg = memokPipelineConfigFromProcessEnv();
   const resolvedModel = resolveModel(opts?.model);
-  const client = opts?.client ?? new OpenAI();
-  return articleMemorySentencesLlm(client, stripped, resolvedModel);
+  const client = opts?.client ?? createOpenAIClient(cfg);
+  return articleMemorySentencesLlm(client, stripped, resolvedModel, {
+    deepseek: isDeepseekCompatibleBaseUrlFromUrl(cfg.openaiBaseUrl),
+    preferJsonObjectOnly: preferJsonObjectOnlyFromConfig(cfg),
+    tokenCap: Math.max(
+      512,
+      Math.min(cfg.articleSentencesMaxOutputTokens, 128_000),
+    ),
+  });
 }
 
 export const _internalArticleSentences = {

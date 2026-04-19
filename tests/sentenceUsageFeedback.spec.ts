@@ -3,7 +3,21 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import Database from "better-sqlite3";
 import { describe, expect, it } from "vitest";
+import type { MemokPipelineConfig } from "../src/config/memokPipelineConfig.js";
 import { applySentenceUsageFeedback } from "../src/sqlite/applySentenceUsageFeedback.js";
+
+function dummyMemok(dbPath: string): MemokPipelineConfig {
+  return {
+    dbPath,
+    openaiApiKey: "sk-test-unused-for-sentence-feedback",
+    openaiBaseUrl: undefined,
+    llmModel: "gpt-4o-mini",
+    llmMaxWorkers: 1,
+    articleSentencesMaxOutputTokens: 8192,
+    coreWordsNormalizeMaxOutputTokens: 32768,
+    sentenceMergeMaxCompletionTokens: 2048,
+  };
+}
 
 function openMemokSchemaDb(dir: string): string {
   const dbPath = join(dir, "t.sqlite");
@@ -34,7 +48,9 @@ describe("applySentenceUsageFeedback", () => {
     const root = mkdtempSync(join(tmpdir(), "memok-suf-"));
     try {
       const dbPath = openMemokSchemaDb(root);
-      const { updatedCount } = applySentenceUsageFeedback(dbPath, [1, 1], {
+      const { updatedCount } = applySentenceUsageFeedback({
+        ...dummyMemok(dbPath),
+        sentenceIds: [1, 1],
         lastEditDate: "2026-06-15",
       });
       expect(updatedCount).toBe(1);
@@ -64,9 +80,21 @@ describe("applySentenceUsageFeedback", () => {
     try {
       const dbPath = openMemokSchemaDb(root);
       const day = "2026-06-20";
-      applySentenceUsageFeedback(dbPath, [2], { lastEditDate: day });
-      applySentenceUsageFeedback(dbPath, [2], { lastEditDate: day });
-      applySentenceUsageFeedback(dbPath, [2], { lastEditDate: day });
+      applySentenceUsageFeedback({
+        ...dummyMemok(dbPath),
+        sentenceIds: [2],
+        lastEditDate: day,
+      });
+      applySentenceUsageFeedback({
+        ...dummyMemok(dbPath),
+        sentenceIds: [2],
+        lastEditDate: day,
+      });
+      applySentenceUsageFeedback({
+        ...dummyMemok(dbPath),
+        sentenceIds: [2],
+        lastEditDate: day,
+      });
       const db = new Database(dbPath, { readonly: true });
       const row3 = db
         .prepare(
@@ -82,7 +110,11 @@ describe("applySentenceUsageFeedback", () => {
       expect(row3.duration).toBe(13);
       expect(row3.duration_change_times).toBe(3);
 
-      applySentenceUsageFeedback(dbPath, [2], { lastEditDate: day });
+      applySentenceUsageFeedback({
+        ...dummyMemok(dbPath),
+        sentenceIds: [2],
+        lastEditDate: day,
+      });
       const db4 = new Database(dbPath, { readonly: true });
       const row4 = db4
         .prepare(
@@ -107,10 +139,26 @@ describe("applySentenceUsageFeedback", () => {
     try {
       const dbPath = openMemokSchemaDb(root);
       const day = "2026-06-20";
-      applySentenceUsageFeedback(dbPath, [2], { lastEditDate: day });
-      applySentenceUsageFeedback(dbPath, [2], { lastEditDate: day });
-      applySentenceUsageFeedback(dbPath, [2], { lastEditDate: day });
-      applySentenceUsageFeedback(dbPath, [2], { lastEditDate: "2026-06-21" });
+      applySentenceUsageFeedback({
+        ...dummyMemok(dbPath),
+        sentenceIds: [2],
+        lastEditDate: day,
+      });
+      applySentenceUsageFeedback({
+        ...dummyMemok(dbPath),
+        sentenceIds: [2],
+        lastEditDate: day,
+      });
+      applySentenceUsageFeedback({
+        ...dummyMemok(dbPath),
+        sentenceIds: [2],
+        lastEditDate: day,
+      });
+      applySentenceUsageFeedback({
+        ...dummyMemok(dbPath),
+        sentenceIds: [2],
+        lastEditDate: "2026-06-21",
+      });
       const db = new Database(dbPath, { readonly: true });
       const row = db
         .prepare(

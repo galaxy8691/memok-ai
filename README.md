@@ -77,15 +77,40 @@ npm install memok-ai
 
 ```ts
 // Full API surface (pipelines, SQLite helpers, types)
-import { articleWordPipelineV2 } from "memok-ai";
+import {
+  articleWordPipelineV2,
+  buildPipelineContext,
+  memokPipelineConfigFromProcessEnv,
+} from "memok-ai";
 
 // Stable subset for gateways / OpenClaw-style hosts
-import { runDreamingPipelineFromDb, articleWordPipelineSaveDb } from "memok-ai/bridge";
+import {
+  articleWordPipeline,
+  dreamingPipeline,
+  memokPipelineConfigFromProcessEnv,
+} from "memok-ai/bridge";
+```
+
+Bridge entrypoints (`articleWordPipeline`, `dreamingPipeline`, etc.) take a full `MemokPipelineConfig` (or extended types such as `DreamingPipelineConfig`). For low-level pipelines that accept `{ ctx }`, import `buildPipelineContext` from the main `memok-ai` package instead. This repo’s CLI uses `memokPipelineConfigFromProcessEnv()` (merges project root `.env` on each call) plus `buildPipelineContext` from the library root.
+
+```ts
+import { articleWordPipeline } from "memok-ai/bridge";
+
+await articleWordPipeline(longText, {
+  dbPath: "/path/to/memok.sqlite",
+  openaiApiKey: process.env.OPENAI_API_KEY!,
+  openaiBaseUrl: process.env.OPENAI_BASE_URL,
+  llmModel: "gpt-4o-mini",
+  llmMaxWorkers: 4,
+  articleSentencesMaxOutputTokens: 8192,
+  coreWordsNormalizeMaxOutputTokens: 32768,
+  sentenceMergeMaxCompletionTokens: 2048,
+});
 ```
 
 - Requires **Node.js ≥20** (same as this repo).
 - **`better-sqlite3`** is a native dependency: first install may compile or download prebuilds (similar to cloning this repo and running `npm install`).
-- Configure LLM access at **runtime** with normal environment variables (for example `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `MEMOK_LLM_MODEL`), or call `loadProjectEnv()` from `memok-ai/bridge` if you intentionally want to hydrate from a project-root `.env` in development.
+- At **runtime**, `memokPipelineConfigFromProcessEnv()` (also exported on `memok-ai/bridge`) merges the project root `.env` into `process.env` (without overriding existing variables), then returns a `MemokPipelineConfig` including `dbPath` from `MEMOK_DB_PATH` or default `./memok.sqlite`. For production-style hosts, prefer constructing `MemokPipelineConfig` yourself (TOML, `ConfigService`, etc.) and skip env-based assembly.
 
 The OpenClaw plugin repo may list this package under an alias such as `memok-ai-core`; the registry name remains **`memok-ai`**.
 
@@ -201,7 +226,7 @@ With custom options:
 npm run dev -- dreaming-pipeline --db ./memok.sqlite --max-words 10 --fraction 0.2 --min-runs 3 --max-runs 5
 ```
 
-Each `runDreamingPipelineFromDb` completion (success or failure) appends a row to SQLite table `dream_logs` (skip with `skipDreamLog` for tests). When the OpenClaw plugin uses dreaming cron, it relies on this core behavior. Columns:
+Each `dreamingPipeline` completion (success or failure) appends a row to SQLite table `dream_logs`. Pass a single `DreamingPipelineConfig` object: `MemokPipelineConfig` plus required `dreamLogWarn`, plus optional story tuning (`maxWords` / `fraction` / `minRuns` / `maxRuns`). When the OpenClaw plugin uses dreaming cron, it relies on this core behavior. Columns:
 
 - `dream_date`
 - `ts`

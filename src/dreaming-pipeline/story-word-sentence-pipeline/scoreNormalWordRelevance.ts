@@ -1,8 +1,13 @@
-import OpenAI from "openai";
+import type OpenAI from "openai";
 import { z } from "zod";
 import {
-  isDeepseekCompatibleBaseUrl,
-  loadProjectEnv,
+  createOpenAIClient,
+  memokPipelineConfigFromProcessEnv,
+  type PipelineLlmContext,
+} from "../../config/memokPipelineConfig.js";
+import {
+  isDeepseekCompatibleBaseUrlFromUrl,
+  preferJsonObjectOnlyFromConfig,
   runParseOrJson,
 } from "../../llm/openaiCompat.js";
 
@@ -165,7 +170,13 @@ export function validateNormalWordRelevanceOutput(
 
 async function scoreOneBatch(
   parsedInput: NormalWordRelevanceInput,
-  opts: { client: OpenAI; model: string; budget: number; deepseek: boolean },
+  opts: {
+    client: OpenAI;
+    model: string;
+    budget: number;
+    deepseek: boolean;
+    preferJsonObjectOnly?: boolean;
+  },
 ): Promise<NormalWordRelevanceOutput> {
   const userBody = `请对以下输入逐词评分并按指定 JSON 输出：\n${JSON.stringify(parsedInput)}`;
   const parseArgs = {
@@ -190,6 +201,9 @@ async function scoreOneBatch(
     ...(opts.deepseek
       ? { maxTokens: opts.budget }
       : { maxCompletionTokens: opts.budget }),
+    ...(opts.preferJsonObjectOnly !== undefined
+      ? { preferJsonObjectOnly: opts.preferJsonObjectOnly }
+      : {}),
   };
 
   const attempts = maxLlmAttempts();
@@ -215,16 +229,74 @@ async function scoreOneBatch(
 
 export async function scoreNormalWordRelevance(
   input: NormalWordRelevanceInput,
-  opts?: { client?: OpenAI; model?: string; maxTokens?: number },
+  opts?: {
+    client?: OpenAI;
+    model?: string;
+    maxTokens?: number;
+    ctx?: PipelineLlmContext;
+  },
 ): Promise<NormalWordRelevanceOutput> {
-  loadProjectEnv();
   const parsedInput = NormalWordRelevanceInputSchema.parse(input);
+  if (opts?.ctx) {
+    const model = (opts.model?.trim() || opts.ctx.config.llmModel).trim();
+    const client = opts.ctx.client;
+    const deepseek = isDeepseekCompatibleBaseUrlFromUrl(
+      opts.ctx.config.openaiBaseUrl,
+    );
+    const budget = effectiveOutputBudget(
+      deepseek,
+      opts.maxTokens ?? opts.ctx.config.articleSentencesMaxOutputTokens,
+    );
+    const preferJson = preferJsonObjectOnlyFromConfig(opts.ctx.config);
+    if (parsedInput.normalWords.length <= MAX_ITEMS_PER_BATCH) {
+      return scoreOneBatch(parsedInput, {
+        client,
+        model,
+        budget,
+        deepseek,
+        preferJsonObjectOnly: preferJson,
+      });
+    }
+    const merged: NormalWordRelevanceOutput["normalWords"] = [];
+    for (
+      let i = 0;
+      i < parsedInput.normalWords.length;
+      i += MAX_ITEMS_PER_BATCH
+    ) {
+      const chunkInput: NormalWordRelevanceInput = {
+        story: parsedInput.story,
+        normalWords: parsedInput.normalWords.slice(i, i + MAX_ITEMS_PER_BATCH),
+      };
+      const chunkOut = await scoreOneBatch(chunkInput, {
+        client,
+        model,
+        budget,
+        deepseek,
+        preferJsonObjectOnly: preferJson,
+      });
+      merged.push(...chunkOut.normalWords);
+    }
+    return validateNormalWordRelevanceOutput(parsedInput, {
+      normalWords: merged,
+    });
+  }
+  const cfg = memokPipelineConfigFromProcessEnv();
   const model = resolveModel(opts?.model);
-  const client = opts?.client ?? new OpenAI();
-  const deepseek = isDeepseekCompatibleBaseUrl();
-  const budget = effectiveOutputBudget(deepseek, opts?.maxTokens);
+  const client = opts?.client ?? createOpenAIClient(cfg);
+  const deepseek = isDeepseekCompatibleBaseUrlFromUrl(cfg.openaiBaseUrl);
+  const budget = effectiveOutputBudget(
+    deepseek,
+    opts?.maxTokens ?? cfg.articleSentencesMaxOutputTokens,
+  );
+  const preferJson = preferJsonObjectOnlyFromConfig(cfg);
   if (parsedInput.normalWords.length <= MAX_ITEMS_PER_BATCH) {
-    return scoreOneBatch(parsedInput, { client, model, budget, deepseek });
+    return scoreOneBatch(parsedInput, {
+      client,
+      model,
+      budget,
+      deepseek,
+      preferJsonObjectOnly: preferJson,
+    });
   }
 
   const merged: NormalWordRelevanceOutput["normalWords"] = [];
@@ -242,6 +314,7 @@ export async function scoreNormalWordRelevance(
       model,
       budget,
       deepseek,
+      preferJsonObjectOnly: preferJson,
     });
     merged.push(...chunkOut.normalWords);
   }

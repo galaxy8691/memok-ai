@@ -1,5 +1,5 @@
-import type Database from "better-sqlite3";
 import { z } from "zod";
+import type { MemokPipelineConfig } from "../config/memokPipelineConfig.js";
 import { openSqlite } from "../sqlite/openSqlite.js";
 
 /** 经本次 words 抽样、经哪条「词 → 规范词」边连到该句（仅保留抽样顺序下最先命中的那一对） */
@@ -42,7 +42,8 @@ export const MemoryExtractResponseSchema = z
 
 export type MemoryExtractResponse = z.infer<typeof MemoryExtractResponseSchema>;
 
-export type ExtractMemorySentencesOpts = {
+/** {@link extractMemorySentencesByWordSample} 入参：显式流水线配置 + 可选抽样比例 */
+export type ExtractMemorySentencesByWordSampleInput = MemokPipelineConfig & {
   /** 对 words 全表行数取样的比例，默认 0.2 */
   fraction?: number;
   /**
@@ -122,15 +123,14 @@ function emptyResponse(): MemoryExtractResponse {
  * - **非短期**：候选中按 `weight+duration` 加权、无放回随机抽取约 `longTermFraction`（默认同 fraction），
  *   接在 `sentences` 数组后段。
  * 每条 `matched_word` 为本次抽样词 id 顺序下最先能连到该句的一对（`word` / `normal_word`）；同 rank 时保留先合并到的那条。
+ * 仅使用 `input.dbPath` 打开库；其余 {@link MemokPipelineConfig} 字段不参与本函数逻辑。
  */
 export function extractMemorySentencesByWordSample(
-  dbOrPath: Database.Database | string,
-  opts?: ExtractMemorySentencesOpts,
+  input: ExtractMemorySentencesByWordSampleInput,
 ): MemoryExtractResponse {
-  const fraction = opts?.fraction ?? 0.2;
-  const longTermFraction = opts?.longTermFraction ?? fraction;
-  const ownDb = typeof dbOrPath === "string";
-  const db = ownDb ? openSqlite(dbOrPath) : dbOrPath;
+  const fraction = input.fraction ?? 0.2;
+  const longTermFraction = input.longTermFraction ?? fraction;
+  const db = openSqlite(input.dbPath);
   try {
     db.pragma("foreign_keys = ON");
     const countRow = db.prepare("SELECT COUNT(*) as c FROM words").get() as {
@@ -220,8 +220,6 @@ export function extractMemorySentencesByWordSample(
       sentences: [...shortTerm, ...longSampled],
     });
   } finally {
-    if (ownDb) {
-      (db as Database.Database).close();
-    }
+    db.close();
   }
 }

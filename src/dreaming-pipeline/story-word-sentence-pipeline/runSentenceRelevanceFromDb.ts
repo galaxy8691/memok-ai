@@ -1,4 +1,5 @@
 import type OpenAI from "openai";
+import type { PipelineLlmContext } from "../../config/memokPipelineConfig.js";
 import {
   type SampleSentencesForRelevanceOpts,
   sampleSentencesForRelevance,
@@ -12,6 +13,7 @@ export type RunSentenceRelevanceFromDbOpts = SampleSentencesForRelevanceOpts & {
   client?: OpenAI;
   model?: string;
   maxTokens?: number;
+  ctx?: PipelineLlmContext;
 };
 
 export async function runSentenceRelevanceFromDb(
@@ -19,13 +21,13 @@ export async function runSentenceRelevanceFromDb(
   story: string,
   opts?: RunSentenceRelevanceFromDbOpts,
 ): Promise<SentenceRelevanceOutput> {
-  const { client, model, maxTokens, ...sampleOpts } = opts ?? {};
+  const { client, model, maxTokens, ctx, ...sampleOpts } = opts ?? {};
   const sentences = sampleSentencesForRelevance(dbPath, sampleOpts);
   return scoreSentenceRelevance(
     {
       story,
       sentences,
     },
-    { client, model, maxTokens },
+    { client, model, maxTokens, ctx },
   );
 }

@@ -88,15 +88,40 @@ npm install memok-ai
 
 ```ts
 // 主入口：流水线、SQLite 工具、类型等
-import { articleWordPipelineV2 } from "memok-ai";
+import {
+  articleWordPipelineV2,
+  buildPipelineContext,
+  memokPipelineConfigFromProcessEnv,
+} from "memok-ai";
 
 // 网关 / OpenClaw 类宿主常用的稳定子集
-import { runDreamingPipelineFromDb, articleWordPipelineSaveDb } from "memok-ai/bridge";
+import {
+  articleWordPipeline,
+  dreamingPipeline,
+  memokPipelineConfigFromProcessEnv,
+} from "memok-ai/bridge";
+```
+
+`memok-ai/bridge` 上的编排入口（如 `articleWordPipeline`、`dreamingPipeline`）直接接收完整的 `MemokPipelineConfig`（或 `DreamingPipelineConfig` 等扩展类型）。若需要给只认 `{ ctx }` 的低层流水线组 `ctx`，请从主包 `memok-ai` 导入 `buildPipelineContext`。本仓库 CLI 使用 `memokPipelineConfigFromProcessEnv()`（每次调用会先合并项目根 `.env`）并结合主包的 `buildPipelineContext`。
+
+```ts
+import { articleWordPipeline } from "memok-ai/bridge";
+
+await articleWordPipeline(longText, {
+  dbPath: "/path/to/memok.sqlite",
+  openaiApiKey: process.env.OPENAI_API_KEY!,
+  openaiBaseUrl: process.env.OPENAI_BASE_URL,
+  llmModel: "gpt-4o-mini",
+  llmMaxWorkers: 4,
+  articleSentencesMaxOutputTokens: 8192,
+  coreWordsNormalizeMaxOutputTokens: 32768,
+  sentenceMergeMaxCompletionTokens: 2048,
+});
 ```
 
 - 需要 **Node.js ≥20**（与本仓库一致）。
 - 依赖 **`better-sqlite3`**（原生模块）：首次安装可能触发预编译下载或本地编译，耗时与「克隆本仓库后 `npm install`」类似。
-- LLM 相关配置建议在**运行时**通过环境变量提供（如 `OPENAI_API_KEY`、`OPENAI_BASE_URL`、`MEMOK_LLM_MODEL`）；若在开发环境希望从项目根 `.env` 注入进程环境，可调用 `memok-ai/bridge` 导出的 `loadProjectEnv()`（可选）。
+- **运行时**：`memokPipelineConfigFromProcessEnv()`（`memok-ai/bridge` 亦导出）会先把项目根 `.env` 合并进 `process.env`（不覆盖已有变量），再返回 `MemokPipelineConfig`（含 `dbPath`：`MEMOK_DB_PATH` 或默认 `./memok.sqlite`）。生产环境推荐自行组装 `MemokPipelineConfig`（TOML、`ConfigService` 等），不必依赖 `.env`。
 
 ### 3）作为 OpenClaw 插件使用
 
@@ -220,7 +245,7 @@ npm run dev -- extract-memory-sentences --db ./memok.sqlite
 npm run dev -- dreaming-pipeline --db ./memok.sqlite
 ```
 
-`runDreamingPipelineFromDb` 每次执行结束（成功或失败）都会在 SQLite 的 `dream_logs` 表追加一行（单测可设 `skipDreamLog`）。OpenClaw 插件定时 dreaming 即依赖该核心行为。字段包括：
+`dreamingPipeline` 每次执行结束（成功或失败）都会在 SQLite 的 `dream_logs` 表追加一行。传入单个 `DreamingPipelineConfig`：`MemokPipelineConfig`、必填 `dreamLogWarn`，以及可选的故事调参（`maxWords` / `fraction` / `minRuns` / `maxRuns`）。OpenClaw 插件定时 dreaming 即依赖该核心行为。字段包括：
 
 - `dream_date`
 - `ts`

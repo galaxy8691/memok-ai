@@ -8,6 +8,10 @@ import {
 import { basename, extname, join, relative, resolve } from "node:path";
 import { dumpArticleSentenceCoreCombineTupleV2Json } from "../article-word-pipeline/v2/articleSentenceCoreCombine.js";
 import { articleWordPipelineV2 } from "../article-word-pipeline/v2/articleWordPipeline.js";
+import {
+  buildPipelineContext,
+  memokPipelineConfigFromProcessEnv,
+} from "../config/memokPipelineConfig.js";
 
 type CliOptions = {
   inputDir: string;
@@ -88,6 +92,7 @@ async function main(): Promise<void> {
     `将处理 ${sliced.length} 个文件（输入目录: ${inputDir}，输出目录: ${outputDir}）`,
   );
   const errors: string[] = [];
+  const ctx = buildPipelineContext(memokPipelineConfigFromProcessEnv());
 
   for (let i = 0; i < sliced.length; i += 1) {
     const file = sliced[i];
@@ -106,7 +111,9 @@ async function main(): Promise<void> {
 
     try {
       const text = readFileSync(file, "utf-8");
-      const [combined, normalized] = await articleWordPipelineV2(text);
+      const [combined, normalized] = await articleWordPipelineV2(text, {
+        ctx,
+      });
       const payload = dumpArticleSentenceCoreCombineTupleV2Json(
         combined,
         normalized,

@@ -4,9 +4,17 @@ export * from "./article-word-pipeline/v2/articleSentenceCoreCombine.js";
 export * from "./article-word-pipeline/v2/articleSentences.js";
 export * from "./article-word-pipeline/v2/articleWordPipeline.js";
 export * from "./article-word-pipeline/v2/schemas.js";
+export type {
+  MemokPipelineConfig,
+  PipelineLlmContext,
+} from "./config/memokPipelineConfig.js";
+export {
+  buildPipelineContext,
+  createOpenAIClient,
+  memokPipelineConfigFromProcessEnv,
+} from "./config/memokPipelineConfig.js";
 export * from "./dreaming-pipeline/index.js";
 export * from "./llm/openaiCompat.js";
-export * from "./memory/articleWordPipelineSaveDb.js";
 export * from "./read-memory-pipeline/extractMemorySentencesByWordSample.js";
 export * from "./sqlite/awpV2Import.js";
 export * from "./sqlite/hardenDb.js";

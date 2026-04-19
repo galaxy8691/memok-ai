@@ -1,8 +1,10 @@
-import OpenAI from "openai";
+import type OpenAI from "openai";
 import {
-  isDeepseekCompatibleBaseUrl,
-  loadProjectEnv,
-} from "../../llm/openaiCompat.js";
+  createOpenAIClient,
+  memokPipelineConfigFromProcessEnv,
+  type PipelineLlmContext,
+} from "../../config/memokPipelineConfig.js";
+import { isDeepseekCompatibleBaseUrlFromUrl } from "../../llm/openaiCompat.js";
 
 const ENV_DREAMING_MODEL = "MEMOK_DREAMING_LLM_MODEL";
 const ENV_MEMOK_LLM_MODEL = "MEMOK_LLM_MODEL";
@@ -44,16 +46,51 @@ export const SYSTEM_PROMPT_DREAM = `你是梦幻叙事作者。用户会给你�
  */
 export async function generateDreamText(
   keywords: string[],
-  opts?: { client?: OpenAI; model?: string; maxTokens?: number },
+  opts?: {
+    client?: OpenAI;
+    model?: string;
+    maxTokens?: number;
+    ctx?: PipelineLlmContext;
+  },
 ): Promise<string> {
-  loadProjectEnv();
   if (keywords.length === 0) {
     throw new Error("keywords must be non-empty");
   }
+  if (opts?.ctx) {
+    const model = (opts.model?.trim() || opts.ctx.config.llmModel).trim();
+    const client = opts.ctx.client;
+    const deepseek = isDeepseekCompatibleBaseUrlFromUrl(
+      opts.ctx.config.openaiBaseUrl,
+    );
+    const maxTok = effectiveMaxTokens(
+      deepseek,
+      opts.maxTokens ?? opts.ctx.config.articleSentencesMaxOutputTokens,
+    );
+    const userBody = `以下为关键词（JSON 数组），请按要求写一段梦幻叙事正文：\n${JSON.stringify(keywords)}`;
+    const completion = await client.chat.completions.create({
+      model,
+      messages: [
+        { role: "system", content: SYSTEM_PROMPT_DREAM },
+        { role: "user", content: userBody },
+      ],
+      ...(deepseek
+        ? { max_tokens: maxTok }
+        : { max_completion_tokens: maxTok }),
+    });
+    const raw = completion.choices[0]?.message?.content;
+    if (typeof raw !== "string" || !raw.trim()) {
+      throw new Error("LLM returned empty dream text");
+    }
+    return raw.trim();
+  }
+  const cfg = memokPipelineConfigFromProcessEnv();
   const model = resolveDreamingModel(opts?.model);
-  const client = opts?.client ?? new OpenAI();
-  const deepseek = isDeepseekCompatibleBaseUrl();
-  const maxTok = effectiveMaxTokens(deepseek, opts?.maxTokens);
+  const client = opts?.client ?? createOpenAIClient(cfg);
+  const deepseek = isDeepseekCompatibleBaseUrlFromUrl(cfg.openaiBaseUrl);
+  const maxTok = effectiveMaxTokens(
+    deepseek,
+    opts?.maxTokens ?? cfg.articleSentencesMaxOutputTokens,
+  );
   const userBody = `以下为关键词（JSON 数组），请按要求写一段梦幻叙事正文：\n${JSON.stringify(keywords)}`;
   const completion = await client.chat.completions.create({
     model,
