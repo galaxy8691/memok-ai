@@ -1,6 +1,6 @@
 {
   "name": "memok-ai",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Node/TS implementation of memok v2 pipeline",
   "main": "dist/index.js",
   "bin": {

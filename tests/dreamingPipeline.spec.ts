@@ -40,6 +40,7 @@ describe("runDreamingPipelineFromDb", () => {
       orphanSentenceMerge: { orphansFound: 0, mergedCount: 0, deletedCount: 0 },
     };
     const out = await runDreamingPipelineFromDb("/tmp/x.sqlite", {
+      skipDreamLog: true,
       pickRunCount: () => 1,
       runPredreamDecayFromDbFn: () => {
         order.push("predream");

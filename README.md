@@ -179,7 +179,7 @@ With custom options:
 npm run dev -- dreaming-pipeline --db ./memok.sqlite --max-words 10 --fraction 0.2 --min-runs 3 --max-runs 5
 ```
 
-When plugin dreaming cron is enabled, each run is persisted in SQLite table `dream_logs`:
+Each `runDreamingPipelineFromDb` completion (success or failure) appends a row to SQLite table `dream_logs` (skip with `skipDreamLog` for tests). When the OpenClaw plugin uses dreaming cron, it relies on this core behavior. Columns:
 
 - `dream_date`
 - `ts`

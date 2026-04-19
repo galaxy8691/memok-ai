@@ -2,7 +2,7 @@
  * Stable surface for the OpenClaw plugin package (`memok-ai-openclaw`).
  * Import only from `memok-ai-core/bridge` (or published `memok-ai/bridge`).
  * This core package does not ship plugin gateway code; the plugin lives in the separate repo.
- * SQLite open helpers are exported for the plugin (e.g. dreaming `dream_logs` writes); prefer path-based APIs for memory pipelines when possible.
+ * `runDreamingPipelineFromDb` writes `dream_logs` in core after each run (see opts `skipDreamLog` / `dreamLogWarn`).
  * Transcript recall-marker stripping (`@@@MEMOK_RECALL_*@@@` / 旧版标题) lives in the OpenClaw plugin, not here.
  * OpenClaw heartbeat / reminder template scrubbing is also plugin-owned (before calling core or after consuming pipeline output).
  */

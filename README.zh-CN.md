@@ -200,7 +200,7 @@ npm run dev -- extract-memory-sentences --db ./memok.sqlite
 npm run dev -- dreaming-pipeline --db ./memok.sqlite
 ```
 
-插件定时 dreaming 开启后，每次执行结果会写入 SQLite 的 `dream_logs` 表，字段包括：
+`runDreamingPipelineFromDb` 每次执行结束（成功或失败）都会在 SQLite 的 `dream_logs` 表追加一行（单测可设 `skipDreamLog`）。OpenClaw 插件定时 dreaming 即依赖该核心行为。字段包括：
 
 - `dream_date`
 - `ts`
