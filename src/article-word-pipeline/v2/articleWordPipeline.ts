@@ -1,6 +1,5 @@
 import type OpenAI from "openai";
 import { llmMaxWorkers } from "../../llm/openaiCompat.js";
-import { scrubHeartbeatInAwpTuple } from "../../utils/scrubOpenclawHeartbeatArtifacts.js";
 import { analyzeArticleCoreWords } from "./articleCoreWords.js";
 import { normalizeArticleCoreWordsSynonyms } from "./articleCoreWordsNormalize.js";
 import { combineArticleSentenceCoreV2 } from "./articleSentenceCoreCombine.js";
@@ -27,9 +26,7 @@ export async function articleWordPipelineV2(
     const memorySentences = await analyzeArticleMemorySentences(text, {
       client: opts?.client,
     });
-    return scrubHeartbeatInAwpTuple(
-      combineArticleSentenceCoreV2(memorySentences, normalized),
-    );
+    return combineArticleSentenceCoreV2(memorySentences, normalized);
   }
 
   const branchCoreNormalize =
@@ -43,7 +40,5 @@ export async function articleWordPipelineV2(
     branchCoreNormalize(),
     branchMemory(),
   ]);
-  return scrubHeartbeatInAwpTuple(
-    combineArticleSentenceCoreV2(memorySentences, normalized),
-  );
+  return combineArticleSentenceCoreV2(memorySentences, normalized);
 }

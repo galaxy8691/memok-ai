@@ -2,7 +2,7 @@ import { articleWordPipelineV2 } from "../article-word-pipeline/v2/articleWordPi
 import { importAwpV2Tuple } from "../sqlite/awpV2Import.js";
 import { openSqlite } from "../sqlite/openSqlite.js";
 
-export type SaveTextToMemoryDbOptions = {
+export type ArticleWordPipelineSaveDbOptions = {
   dbPath: string;
   today?: string;
 };
@@ -11,9 +11,9 @@ export type SaveTextToMemoryDbOptions = {
  * 输入任意文本，走 article-word-pipeline(v2) 后直接写入 SQLite。
  * 不落地任何中间 JSON 文件。
  */
-export async function saveTextToMemoryDb(
+export async function articleWordPipelineSaveDb(
   text: string,
-  options: SaveTextToMemoryDbOptions,
+  options: ArticleWordPipelineSaveDbOptions,
 ): Promise<void> {
   const stripped = text.trim();
   if (!stripped) {
