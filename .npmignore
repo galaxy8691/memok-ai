@@ -1,0 +1,30 @@
+# Primary allowlist is package.json "files" (dist, LICENSE). This file is
+# defense-in-depth and documents paths that must never ship to the registry.
+
+node_modules/
+src/
+tests/
+.github/
+coverage/
+articles/
+outputs/
+data/
+tmp/
+*.log
+*.sqlite
+*.tsbuildinfo
+
+.env
+.env.*
+
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+tsconfig.json
+biome.json
+vitest.config.*
+.npmrc
+
+memok.sqlite.clean

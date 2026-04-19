@@ -1,6 +1,6 @@
 {
   "name": "memok-ai",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Node/TS implementation of memok v2 pipeline",
   "main": "dist/index.js",
   "bin": {
@@ -31,6 +31,9 @@
   "keywords": [],
   "author": "",
   "license": "MIT",
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/"
+  },
   "files": [
     "dist",
     "LICENSE"

@@ -13,6 +13,20 @@ const DEFAULT_MODEL = "gpt-4o-mini";
 const DEFAULT_MAX_OUTPUT = 4096;
 const DEEPSEEK_CHAT_MAX_TOKENS_CAP = 8192;
 const MAX_ITEMS_PER_BATCH = 50;
+const DEFAULT_MAX_LLM_ATTEMPTS = 8;
+const HARD_CAP_LLM_ATTEMPTS = 32;
+
+function maxLlmAttempts(): number {
+  const raw = (process.env.MEMOK_RELEVANCE_SCORE_MAX_LLM_ATTEMPTS ?? "").trim();
+  if (!raw) {
+    return DEFAULT_MAX_LLM_ATTEMPTS;
+  }
+  const n = Number.parseInt(raw, 10);
+  if (!Number.isFinite(n) || n < 1) {
+    return DEFAULT_MAX_LLM_ATTEMPTS;
+  }
+  return Math.min(n, HARD_CAP_LLM_ATTEMPTS);
+}
 
 export const NormalWordRelevanceInputSchema = z
   .object({
@@ -143,18 +157,17 @@ async function scoreOneBatch(
       : { maxCompletionTokens: opts.budget }),
   };
 
+  const attempts = maxLlmAttempts();
   let lastError: unknown;
-  for (let attempt = 0; attempt < 2; attempt += 1) {
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
     const raw = await runParseOrJson(parseArgs);
     try {
       return validateNormalWordRelevanceOutput(parsedInput, raw);
     } catch (e) {
       lastError = e;
-      const tooFew = raw.normalWords.length < parsedInput.normalWords.length;
-      if (attempt === 0 && tooFew) {
-        continue;
+      if (attempt + 1 >= attempts) {
+        break;
       }
-      throw e;
     }
   }
   throw lastError instanceof Error ? lastError : new Error(String(lastError));
