@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  repairSentenceRelevanceOutput,
   SentenceRelevanceInputSchema,
   SentenceRelevanceOutputSchema,
   validateSentenceRelevanceOutput,
@@ -42,6 +43,18 @@ describe("validateSentenceRelevanceOutput", () => {
       ],
     });
     expect(() => validateSentenceRelevanceOutput(input, output)).toThrow(/id=/);
+  });
+
+  it("repair fills missing ids so validate passes", () => {
+    const output = SentenceRelevanceOutputSchema.parse({
+      sentences: [{ id: 1, score: 60 }],
+    });
+    const repaired = repairSentenceRelevanceOutput(input, output);
+    expect(() =>
+      validateSentenceRelevanceOutput(input, repaired),
+    ).not.toThrow();
+    expect(repaired.sentences).toHaveLength(2);
+    expect(repaired.sentences.find((r) => r.id === 2)?.score).toBe(60);
   });
 
   it("schema rejects non-int/out-of-range scores", () => {

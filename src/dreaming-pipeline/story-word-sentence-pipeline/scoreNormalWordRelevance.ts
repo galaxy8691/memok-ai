@@ -13,7 +13,8 @@ const DEFAULT_MODEL = "gpt-4o-mini";
 const DEFAULT_MAX_OUTPUT = 4096;
 const DEEPSEEK_CHAT_MAX_TOKENS_CAP = 8192;
 const MAX_ITEMS_PER_BATCH = 50;
-const DEFAULT_MAX_LLM_ATTEMPTS = 8;
+/** Strict LLM attempts before coercing output to match input ids (default 5). */
+const DEFAULT_MAX_LLM_ATTEMPTS = 5;
 const HARD_CAP_LLM_ATTEMPTS = 32;
 
 function maxLlmAttempts(): number {
@@ -26,6 +27,40 @@ function maxLlmAttempts(): number {
     return DEFAULT_MAX_LLM_ATTEMPTS;
   }
   return Math.min(n, HARD_CAP_LLM_ATTEMPTS);
+}
+
+function clampScore0to100(n: number): number {
+  const r = Math.round(Number(n));
+  if (!Number.isFinite(r)) {
+    return 50;
+  }
+  return Math.max(0, Math.min(100, r));
+}
+
+/** Align model output to input ids; missing ids get the mean of returned scores or 50. */
+export function repairNormalWordRelevanceOutput(
+  input: NormalWordRelevanceInput,
+  output: NormalWordRelevanceOutput,
+): NormalWordRelevanceOutput {
+  const byId = new Map<number, number>();
+  for (const row of output.normalWords) {
+    if (Number.isFinite(row.id)) {
+      byId.set(row.id, clampScore0to100(row.score));
+    }
+  }
+  let fallback = 50;
+  if (byId.size > 0) {
+    let sum = 0;
+    for (const v of byId.values()) {
+      sum += v;
+    }
+    fallback = Math.round(sum / byId.size);
+  }
+  const normalWords = input.normalWords.map(({ id }) => ({
+    id,
+    score: byId.has(id) ? (byId.get(id) as number) : fallback,
+  }));
+  return { normalWords };
 }
 
 export const NormalWordRelevanceInputSchema = z
@@ -159,16 +194,21 @@ async function scoreOneBatch(
 
   const attempts = maxLlmAttempts();
   let lastError: unknown;
+  let lastRaw: NormalWordRelevanceOutput | undefined;
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     const raw = await runParseOrJson(parseArgs);
+    lastRaw = raw;
     try {
       return validateNormalWordRelevanceOutput(parsedInput, raw);
     } catch (e) {
       lastError = e;
-      if (attempt + 1 >= attempts) {
-        break;
-      }
     }
+  }
+  if (lastRaw) {
+    return validateNormalWordRelevanceOutput(
+      parsedInput,
+      repairNormalWordRelevanceOutput(parsedInput, lastRaw),
+    );
   }
   throw lastError instanceof Error ? lastError : new Error(String(lastError));
 }

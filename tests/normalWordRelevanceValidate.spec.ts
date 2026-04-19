@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   NormalWordRelevanceInputSchema,
   NormalWordRelevanceOutputSchema,
+  repairNormalWordRelevanceOutput,
   validateNormalWordRelevanceOutput,
 } from "../src/dreaming-pipeline/story-word-sentence-pipeline/scoreNormalWordRelevance.js";
 
@@ -57,6 +58,31 @@ describe("validateNormalWordRelevanceOutput", () => {
       { id: 1, score: 90 },
       { id: 2, score: 10 },
     ]);
+  });
+
+  it("repair fills missing ids so validate passes", () => {
+    const output = NormalWordRelevanceOutputSchema.parse({
+      normalWords: [{ id: 1, score: 80 }],
+    });
+    const repaired = repairNormalWordRelevanceOutput(input, output);
+    expect(() =>
+      validateNormalWordRelevanceOutput(input, repaired),
+    ).not.toThrow();
+    expect(repaired.normalWords).toHaveLength(2);
+    expect(repaired.normalWords.find((r) => r.id === 2)?.score).toBe(80);
+  });
+
+  it("repair drops extra ids and keeps input order", () => {
+    const output = NormalWordRelevanceOutputSchema.parse({
+      normalWords: [
+        { id: 1, score: 10 },
+        { id: 2, score: 20 },
+        { id: 99, score: 30 },
+      ],
+    });
+    const repaired = repairNormalWordRelevanceOutput(input, output);
+    const v = validateNormalWordRelevanceOutput(input, repaired);
+    expect(v.normalWords.map((r) => r.id)).toEqual([1, 2]);
   });
 
   it("schema rejects non-int/out-of-range scores", () => {
