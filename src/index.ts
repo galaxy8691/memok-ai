@@ -17,3 +17,7 @@ export {
 export * from "./read-memory-pipeline/extractMemorySentencesByWordSample.js";
 export * from "./sqlite/awpV2Import.js";
 export * from "./sqlite/hardenDb.js";
+export {
+  type CreateFreshMemokSqliteFileOptions,
+  createFreshMemokSqliteFile,
+} from "./sqlite/memokSchema.js";

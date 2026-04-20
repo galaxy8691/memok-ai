@@ -2,6 +2,7 @@
  * Stable surface for the OpenClaw plugin package (`memok-ai-openclaw`).
  * Import only from `memok-ai-core/bridge` (or published `memok-ai/bridge`).
  * This core package does not ship plugin gateway code; the plugin lives in the separate repo.
+ * {@link createFreshMemokSqliteFile} creates an empty memok SQLite file (schema + indexes) in one call.
  * {@link dreamingPipeline} always writes `dream_logs` after success or failure; `dreamLogWarn` on {@link DreamingPipelineConfig} is required for persist failures.
  * Transcript recall-marker stripping (`@@@MEMOK_RECALL_*@@@` / 旧版标题) lives in the OpenClaw plugin, not here.
  * OpenClaw heartbeat / reminder template scrubbing is also plugin-owned (before calling core or after consuming pipeline output).
@@ -25,3 +26,7 @@ export {
   type ApplySentenceUsageFeedbackInput,
   applySentenceUsageFeedback,
 } from "./sqlite/applySentenceUsageFeedback.js";
+export {
+  type CreateFreshMemokSqliteFileOptions,
+  createFreshMemokSqliteFile,
+} from "./sqlite/memokSchema.js";

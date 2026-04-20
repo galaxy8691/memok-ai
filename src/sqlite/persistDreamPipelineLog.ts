@@ -1,3 +1,4 @@
+import { dreamLogsTableDdl } from "./memokSqliteDdl.js";
 import { openSqlite } from "./openSqlite.js";
 
 /**
@@ -17,13 +18,7 @@ export function persistDreamPipelineLogToDb(params: {
     const db = openSqlite(dbPath, undefined, (m) => warn?.(m));
     try {
       db.pragma("foreign_keys = ON");
-      db.exec(`CREATE TABLE IF NOT EXISTS dream_logs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            dream_date TEXT NOT NULL,
-            ts TEXT NOT NULL,
-            status TEXT NOT NULL,
-            log_json TEXT NOT NULL
-          )`);
+      db.exec(dreamLogsTableDdl);
       db.prepare(
         `INSERT INTO dream_logs (dream_date, ts, status, log_json)
            VALUES (?, ?, ?, ?)`,
