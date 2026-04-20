@@ -1,5 +1,8 @@
 import type OpenAI from "openai";
-import type { PipelineLlmContext } from "../../config/memokPipelineConfig.js";
+import type {
+  MemokPipelineConfig,
+  PipelineLlmContext,
+} from "../../memokPipeline.js";
 import {
   type SampleNormalWordsForRelevanceOpts,
   sampleNormalWordsForRelevance,
@@ -15,6 +18,8 @@ export type RunNormalWordRelevanceFromDbOpts =
     model?: string;
     maxTokens?: number;
     ctx?: PipelineLlmContext;
+    /** 与 `ctx` 二选一或同时提供；优先使用 `ctx.config` */
+    config?: MemokPipelineConfig;
   };
 
 export async function runNormalWordRelevanceFromDb(
@@ -22,13 +27,26 @@ export async function runNormalWordRelevanceFromDb(
   story: string,
   opts?: RunNormalWordRelevanceFromDbOpts,
 ): Promise<NormalWordRelevanceOutput> {
-  const { client, model, maxTokens, ctx, ...sampleOpts } = opts ?? {};
+  const {
+    client,
+    model,
+    maxTokens,
+    ctx,
+    config: explicitConfig,
+    ...sampleOpts
+  } = opts ?? {};
+  const config = ctx?.config ?? explicitConfig;
+  if (!config) {
+    throw new Error(
+      "runNormalWordRelevanceFromDb: pass ctx (PipelineLlmContext) or config (MemokPipelineConfig)",
+    );
+  }
   const normalWords = sampleNormalWordsForRelevance(dbPath, sampleOpts);
   return scoreNormalWordRelevance(
     {
       story,
       normalWords,
     },
-    { client, model, maxTokens, ctx },
+    { config, client: client ?? ctx?.client, model, maxTokens },
   );
 }

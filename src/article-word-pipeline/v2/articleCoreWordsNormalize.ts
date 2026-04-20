@@ -1,37 +1,20 @@
 import type OpenAI from "openai";
 import {
-  createOpenAIClient,
-  memokPipelineConfigFromProcessEnv,
-  type PipelineLlmContext,
-} from "../../config/memokPipelineConfig.js";
-import {
   isDeepseekCompatibleBaseUrl,
   isDeepseekCompatibleBaseUrlFromUrl,
   preferJsonObjectOnlyFromConfig,
   runParseOrJson,
 } from "../../llm/openaiCompat.js";
 import {
+  createOpenAIClient,
+  type MemokPipelineConfig,
+} from "../../memokPipeline.js";
+import {
   type ArticleCoreWordsData,
   type ArticleCoreWordsNomalizedData,
   ArticleCoreWordsNomalizedDataSchema,
 } from "./schemas.js";
 
-const ENV_V2_ARTICLE_CORE_WORDS_NORMALIZE =
-  "MEMOK_V2_ARTICLE_CORE_WORDS_NORMALIZE_LLM_MODEL";
-/** 全流水线共用的默认模型；未设各阶段专有变量时使用 */
-const ENV_MEMOK_LLM_MODEL = "MEMOK_LLM_MODEL";
-const ENV_CORE_WORDS_NORMALIZE_LLM_MODEL =
-  "MEMOK_CORE_WORDS_NORMALIZE_LLM_MODEL";
-const ENV_SENTENCE_MERGE_LLM_MODEL = "MEMOK_SENTENCE_MERGE_LLM_MODEL";
-const ENV_SENTENCE_DEDUCE_MODEL = "MEMOK_SENTENCE_DEDUCE_LLM_MODEL";
-const ENV_SENTENCE_CORE_MODEL = "MEMOK_SENTENCE_CORE_LLM_MODEL";
-const ENV_SEGMENT_CORE_MODEL = "MEMOK_SEGMENT_CORE_LLM_MODEL";
-const ENV_SENTENCE_PROCESS_MODEL = "MEMOK_SENTENCE_PROCESS_LLM_MODEL";
-const ENV_ARTICLE_MODEL = "MEMOK_ARTICLE_LLM_MODEL";
-const ENV_NORMALIZE_MAX_OUTPUT_TOKENS =
-  "MEMOK_CORE_WORDS_NORMALIZE_MAX_OUTPUT_TOKENS";
-const DEFAULT_MODEL = "gpt-4o-mini";
-const DEFAULT_NORMALIZE_OUTPUT_TOKEN_BUDGET = 32768;
 const DEEPSEEK_CHAT_MAX_TOKENS_CAP = 8192;
 
 export const SYSTEM_PROMPT_ARTICLE_CORE_WORDS_NORMALIZE = `你是「记忆锚点」同义归一助手。用户会提供 JSON，顶层键 \`\`core_words\`\`，值为**已去重且保序**的字符串数组（每个字符串是一条原子锚点）。
@@ -55,50 +38,18 @@ export const SYSTEM_PROMPT_ARTICLE_CORE_WORDS_NORMALIZE = `你是「记忆锚点
 export const JSON_MODE_USER_SUFFIX_ARTICLE_CORE_WORDS_NORMALIZE =
   '\n\n请只输出一个 JSON 对象，且仅包含一个键 "nomalized"（数组）；数组元素每个为对象，仅含键 "original_text" 与 "new_text"（字符串）。不要使用 markdown 代码围栏。';
 
-function normalizeOutputTokenBudget(): number {
-  const raw = (process.env[ENV_NORMALIZE_MAX_OUTPUT_TOKENS] ?? "").trim();
-  if (!raw) {
-    return DEFAULT_NORMALIZE_OUTPUT_TOKEN_BUDGET;
-  }
-  const n = Number.parseInt(raw, 10);
-  if (!Number.isFinite(n)) {
-    return DEFAULT_NORMALIZE_OUTPUT_TOKEN_BUDGET;
-  }
-  return Math.max(256, Math.min(n, 128_000));
-}
-
 function effectiveNormalizeOutputBudget(
   forDeepseek: boolean,
   capOverride?: number,
 ): number {
-  const cap = capOverride ?? normalizeOutputTokenBudget();
+  if (capOverride === undefined) {
+    throw new Error("effectiveNormalizeOutputBudget: token cap is required");
+  }
+  const cap = capOverride;
   if (forDeepseek) {
     return Math.max(1, Math.min(cap, DEEPSEEK_CHAT_MAX_TOKENS_CAP));
   }
   return cap;
-}
-
-function resolveModel(explicit?: string): string {
-  if (explicit?.trim()) {
-    return explicit.trim();
-  }
-  for (const key of [
-    ENV_V2_ARTICLE_CORE_WORDS_NORMALIZE,
-    ENV_MEMOK_LLM_MODEL,
-    ENV_CORE_WORDS_NORMALIZE_LLM_MODEL,
-    ENV_SENTENCE_MERGE_LLM_MODEL,
-    ENV_SENTENCE_DEDUCE_MODEL,
-    ENV_SENTENCE_CORE_MODEL,
-    ENV_SEGMENT_CORE_MODEL,
-    ENV_SENTENCE_PROCESS_MODEL,
-    ENV_ARTICLE_MODEL,
-  ]) {
-    const v = (process.env[key] ?? "").trim();
-    if (v) {
-      return v;
-    }
-  }
-  return DEFAULT_MODEL;
 }
 
 function uniqueCoreWordsOrdered(coreWords: string[]): string[] {
@@ -232,50 +183,33 @@ async function articleCoreWordsNormalizeLlm(
 
 export async function normalizeArticleCoreWordsSynonyms(
   data: ArticleCoreWordsData,
-  opts?: { model?: string; client?: OpenAI; ctx?: PipelineLlmContext },
+  opts: {
+    config: MemokPipelineConfig;
+    model?: string;
+    client?: OpenAI;
+  },
 ): Promise<ArticleCoreWordsNomalizedData> {
   const ordered = uniqueCoreWordsOrdered([...data.core_words]);
   if (ordered.length === 0) {
     return { nomalized: [] };
   }
   const payload = { core_words: ordered };
-  if (opts?.ctx) {
-    const resolvedModel = (
-      opts.model?.trim() || opts.ctx.config.llmModel
-    ).trim();
-    const deepseek = isDeepseekCompatibleBaseUrlFromUrl(
-      opts.ctx.config.openaiBaseUrl,
-    );
-    const tokenCap = Math.max(
-      256,
-      Math.min(opts.ctx.config.coreWordsNormalizeMaxOutputTokens, 128_000),
-    );
-    const raw = await articleCoreWordsNormalizeLlm(
-      opts.ctx.client,
-      payload,
-      resolvedModel,
-      {
-        deepseek,
-        preferJsonObjectOnly: preferJsonObjectOnlyFromConfig(opts.ctx.config),
-        tokenCap,
-      },
-    );
-    return mergeLlmWithCoverage(raw, ordered);
-  }
-  const cfg = memokPipelineConfigFromProcessEnv();
-  const resolvedModel = resolveModel(opts?.model);
-  const client = opts?.client ?? createOpenAIClient(cfg);
+  const { config } = opts;
+  const resolvedModel = (opts.model?.trim() || config.llmModel).trim();
+  const client = opts.client ?? createOpenAIClient(config);
+  const deepseek = isDeepseekCompatibleBaseUrlFromUrl(config.openaiBaseUrl);
+  const tokenCap = Math.max(
+    256,
+    Math.min(config.coreWordsNormalizeMaxOutputTokens, 128_000),
+  );
   const raw = await articleCoreWordsNormalizeLlm(
     client,
     payload,
     resolvedModel,
     {
-      deepseek: isDeepseekCompatibleBaseUrlFromUrl(cfg.openaiBaseUrl),
-      preferJsonObjectOnly: preferJsonObjectOnlyFromConfig(cfg),
-      tokenCap: Math.max(
-        256,
-        Math.min(cfg.coreWordsNormalizeMaxOutputTokens, 128_000),
-      ),
+      deepseek,
+      preferJsonObjectOnly: preferJsonObjectOnlyFromConfig(config),
+      tokenCap,
     },
   );
   return mergeLlmWithCoverage(raw, ordered);

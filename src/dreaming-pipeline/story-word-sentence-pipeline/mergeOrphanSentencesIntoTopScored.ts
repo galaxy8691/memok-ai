@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { z } from "zod";
+import type { MemokPipelineConfig } from "../../memokPipeline.js";
 import { openSqlite } from "../../sqlite/openSqlite.js";
 import { mergeSentenceText } from "./mergeSentenceText.js";
 import { SentenceRelevanceOutputSchema } from "./scoreSentenceRelevance.js";
@@ -45,14 +46,25 @@ function pickTopSentenceId(
 export async function mergeOrphanSentencesIntoTopScored(
   dbPath: string,
   resultJsonPath: string,
-  opts?: { mergeFn?: MergeFn },
+  opts?: { mergeFn?: MergeFn; config?: MemokPipelineConfig },
 ): Promise<MergeOrphanResult> {
   const raw = JSON.parse(readFileSync(resultJsonPath, "utf-8"));
   const parsed = ResultJsonForTopSentenceSchema.parse({
     relevance: raw?.relevance,
   });
   const topSentenceId = pickTopSentenceId(parsed);
-  const mergeFn: MergeFn = opts?.mergeFn ?? mergeSentenceText;
+  let mergeFn: MergeFn;
+  if (opts?.mergeFn) {
+    mergeFn = opts.mergeFn;
+  } else if (opts?.config) {
+    const cfg = opts.config;
+    mergeFn = (base, orphan) =>
+      mergeSentenceText(base, orphan, { config: cfg });
+  } else {
+    throw new Error(
+      "mergeOrphanSentencesIntoTopScored: pass mergeFn or config (MemokPipelineConfig)",
+    );
+  }
 
   const db = openSqlite(dbPath);
   try {

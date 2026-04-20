@@ -1,20 +1,15 @@
 import type OpenAI from "openai";
 import { z } from "zod";
 import {
-  createOpenAIClient,
-  memokPipelineConfigFromProcessEnv,
-  type PipelineLlmContext,
-} from "../../config/memokPipelineConfig.js";
-import {
   isDeepseekCompatibleBaseUrlFromUrl,
   preferJsonObjectOnlyFromConfig,
   runParseOrJson,
 } from "../../llm/openaiCompat.js";
+import {
+  createOpenAIClient,
+  type MemokPipelineConfig,
+} from "../../memokPipeline.js";
 
-const ENV_NORMAL_WORD_RELEVANCE_MODEL = "MEMOK_NORMAL_WORD_RELEVANCE_LLM_MODEL";
-const ENV_SENTENCE_RELEVANCE_MODEL = "MEMOK_SENTENCE_RELEVANCE_LLM_MODEL";
-const ENV_MEMOK_LLM_MODEL = "MEMOK_LLM_MODEL";
-const DEFAULT_MODEL = "gpt-4o-mini";
 const DEFAULT_MAX_OUTPUT = 4096;
 const DEEPSEEK_CHAT_MAX_TOKENS_CAP = 8192;
 const MAX_ITEMS_PER_BATCH = 50;
@@ -95,23 +90,6 @@ export type NormalWordRelevanceInput = z.infer<
 export type NormalWordRelevanceOutput = z.infer<
   typeof NormalWordRelevanceOutputSchema
 >;
-
-function resolveModel(explicit?: string): string {
-  if (explicit?.trim()) {
-    return explicit.trim();
-  }
-  for (const key of [
-    ENV_NORMAL_WORD_RELEVANCE_MODEL,
-    ENV_SENTENCE_RELEVANCE_MODEL,
-    ENV_MEMOK_LLM_MODEL,
-  ]) {
-    const v = (process.env[key] ?? "").trim();
-    if (v) {
-      return v;
-    }
-  }
-  return DEFAULT_MODEL;
-}
 
 function effectiveOutputBudget(
   forDeepseek: boolean,
@@ -229,66 +207,23 @@ async function scoreOneBatch(
 
 export async function scoreNormalWordRelevance(
   input: NormalWordRelevanceInput,
-  opts?: {
+  opts: {
+    config: MemokPipelineConfig;
     client?: OpenAI;
     model?: string;
     maxTokens?: number;
-    ctx?: PipelineLlmContext;
   },
 ): Promise<NormalWordRelevanceOutput> {
   const parsedInput = NormalWordRelevanceInputSchema.parse(input);
-  if (opts?.ctx) {
-    const model = (opts.model?.trim() || opts.ctx.config.llmModel).trim();
-    const client = opts.ctx.client;
-    const deepseek = isDeepseekCompatibleBaseUrlFromUrl(
-      opts.ctx.config.openaiBaseUrl,
-    );
-    const budget = effectiveOutputBudget(
-      deepseek,
-      opts.maxTokens ?? opts.ctx.config.articleSentencesMaxOutputTokens,
-    );
-    const preferJson = preferJsonObjectOnlyFromConfig(opts.ctx.config);
-    if (parsedInput.normalWords.length <= MAX_ITEMS_PER_BATCH) {
-      return scoreOneBatch(parsedInput, {
-        client,
-        model,
-        budget,
-        deepseek,
-        preferJsonObjectOnly: preferJson,
-      });
-    }
-    const merged: NormalWordRelevanceOutput["normalWords"] = [];
-    for (
-      let i = 0;
-      i < parsedInput.normalWords.length;
-      i += MAX_ITEMS_PER_BATCH
-    ) {
-      const chunkInput: NormalWordRelevanceInput = {
-        story: parsedInput.story,
-        normalWords: parsedInput.normalWords.slice(i, i + MAX_ITEMS_PER_BATCH),
-      };
-      const chunkOut = await scoreOneBatch(chunkInput, {
-        client,
-        model,
-        budget,
-        deepseek,
-        preferJsonObjectOnly: preferJson,
-      });
-      merged.push(...chunkOut.normalWords);
-    }
-    return validateNormalWordRelevanceOutput(parsedInput, {
-      normalWords: merged,
-    });
-  }
-  const cfg = memokPipelineConfigFromProcessEnv();
-  const model = resolveModel(opts?.model);
-  const client = opts?.client ?? createOpenAIClient(cfg);
-  const deepseek = isDeepseekCompatibleBaseUrlFromUrl(cfg.openaiBaseUrl);
+  const { config } = opts;
+  const model = (opts.model?.trim() || config.llmModel).trim();
+  const client = opts.client ?? createOpenAIClient(config);
+  const deepseek = isDeepseekCompatibleBaseUrlFromUrl(config.openaiBaseUrl);
   const budget = effectiveOutputBudget(
     deepseek,
-    opts?.maxTokens ?? cfg.articleSentencesMaxOutputTokens,
+    opts.maxTokens ?? config.articleSentencesMaxOutputTokens,
   );
-  const preferJson = preferJsonObjectOnlyFromConfig(cfg);
+  const preferJson = preferJsonObjectOnlyFromConfig(config);
   if (parsedInput.normalWords.length <= MAX_ITEMS_PER_BATCH) {
     return scoreOneBatch(parsedInput, {
       client,

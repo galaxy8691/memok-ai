@@ -1,19 +1,15 @@
 import type OpenAI from "openai";
 import { z } from "zod";
 import {
-  createOpenAIClient,
-  memokPipelineConfigFromProcessEnv,
-  type PipelineLlmContext,
-} from "../../config/memokPipelineConfig.js";
-import {
   isDeepseekCompatibleBaseUrlFromUrl,
   preferJsonObjectOnlyFromConfig,
   runParseOrJson,
 } from "../../llm/openaiCompat.js";
+import {
+  createOpenAIClient,
+  type MemokPipelineConfig,
+} from "../../memokPipeline.js";
 
-const ENV_RELEVANCE_MODEL = "MEMOK_SENTENCE_RELEVANCE_LLM_MODEL";
-const ENV_MEMOK_LLM_MODEL = "MEMOK_LLM_MODEL";
-const DEFAULT_MODEL = "gpt-4o-mini";
 const DEFAULT_MAX_OUTPUT = 4096;
 const DEEPSEEK_CHAT_MAX_TOKENS_CAP = 8192;
 const MAX_SENTENCES_PER_BATCH = 50;
@@ -93,19 +89,6 @@ export type SentenceRelevanceInput = z.infer<
 export type SentenceRelevanceOutput = z.infer<
   typeof SentenceRelevanceOutputSchema
 >;
-
-function resolveModel(explicit?: string): string {
-  if (explicit?.trim()) {
-    return explicit.trim();
-  }
-  for (const key of [ENV_RELEVANCE_MODEL, ENV_MEMOK_LLM_MODEL]) {
-    const v = (process.env[key] ?? "").trim();
-    if (v) {
-      return v;
-    }
-  }
-  return DEFAULT_MODEL;
-}
 
 function effectiveOutputBudget(
   forDeepseek: boolean,
@@ -223,64 +206,23 @@ async function scoreOneBatch(
 
 export async function scoreSentenceRelevance(
   input: SentenceRelevanceInput,
-  opts?: {
+  opts: {
+    config: MemokPipelineConfig;
     client?: OpenAI;
     model?: string;
     maxTokens?: number;
-    ctx?: PipelineLlmContext;
   },
 ): Promise<SentenceRelevanceOutput> {
   const parsedInput = SentenceRelevanceInputSchema.parse(input);
-  if (opts?.ctx) {
-    const model = (opts.model?.trim() || opts.ctx.config.llmModel).trim();
-    const client = opts.ctx.client;
-    const deepseek = isDeepseekCompatibleBaseUrlFromUrl(
-      opts.ctx.config.openaiBaseUrl,
-    );
-    const budget = effectiveOutputBudget(
-      deepseek,
-      opts.maxTokens ?? opts.ctx.config.articleSentencesMaxOutputTokens,
-    );
-    const preferJson = preferJsonObjectOnlyFromConfig(opts.ctx.config);
-    if (parsedInput.sentences.length <= MAX_SENTENCES_PER_BATCH) {
-      return scoreOneBatch(parsedInput, {
-        client,
-        model,
-        budget,
-        deepseek,
-        preferJsonObjectOnly: preferJson,
-      });
-    }
-    const merged: SentenceRelevanceOutput["sentences"] = [];
-    for (
-      let i = 0;
-      i < parsedInput.sentences.length;
-      i += MAX_SENTENCES_PER_BATCH
-    ) {
-      const chunkInput: SentenceRelevanceInput = {
-        story: parsedInput.story,
-        sentences: parsedInput.sentences.slice(i, i + MAX_SENTENCES_PER_BATCH),
-      };
-      const chunkOut = await scoreOneBatch(chunkInput, {
-        client,
-        model,
-        budget,
-        deepseek,
-        preferJsonObjectOnly: preferJson,
-      });
-      merged.push(...chunkOut.sentences);
-    }
-    return validateSentenceRelevanceOutput(parsedInput, { sentences: merged });
-  }
-  const cfg = memokPipelineConfigFromProcessEnv();
-  const model = resolveModel(opts?.model);
-  const client = opts?.client ?? createOpenAIClient(cfg);
-  const deepseek = isDeepseekCompatibleBaseUrlFromUrl(cfg.openaiBaseUrl);
+  const { config } = opts;
+  const model = (opts.model?.trim() || config.llmModel).trim();
+  const client = opts.client ?? createOpenAIClient(config);
+  const deepseek = isDeepseekCompatibleBaseUrlFromUrl(config.openaiBaseUrl);
   const budget = effectiveOutputBudget(
     deepseek,
-    opts?.maxTokens ?? cfg.articleSentencesMaxOutputTokens,
+    opts.maxTokens ?? config.articleSentencesMaxOutputTokens,
   );
-  const preferJson = preferJsonObjectOnlyFromConfig(cfg);
+  const preferJson = preferJsonObjectOnlyFromConfig(config);
   if (parsedInput.sentences.length <= MAX_SENTENCES_PER_BATCH) {
     return scoreOneBatch(parsedInput, {
       client,

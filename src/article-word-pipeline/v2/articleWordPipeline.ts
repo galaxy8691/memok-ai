@@ -1,13 +1,13 @@
 import OpenAI from "openai";
 import {
-  buildPipelineContext,
-  type MemokPipelineConfig,
-  type PipelineLlmContext,
-} from "../../config/memokPipelineConfig.js";
-import {
   effectiveParallelLlmWorkers,
   llmMaxWorkers,
 } from "../../llm/openaiCompat.js";
+import {
+  buildPipelineContext,
+  type MemokPipelineConfig,
+  type PipelineLlmContext,
+} from "../../memokPipeline.js";
 import { importAwpV2Tuple } from "../../sqlite/awpV2Import.js";
 import { openSqlite } from "../../sqlite/openSqlite.js";
 import { analyzeArticleCoreWords } from "./articleCoreWords.js";
@@ -21,7 +21,12 @@ import type {
 
 export async function articleWordPipelineV2(
   text: string,
-  opts?: { client?: OpenAI; ctx?: PipelineLlmContext },
+  opts?: {
+    client?: OpenAI;
+    ctx?: PipelineLlmContext;
+    /** 无 `ctx` 时 LLM 阶段必填（与 `client` 等并用） */
+    config?: MemokPipelineConfig;
+  },
 ): Promise<[ArticleSentenceCoreCombinedData, ArticleCoreWordsNomalizedData]> {
   const stripped = text.trim();
   if (!stripped) {
@@ -34,34 +39,60 @@ export async function articleWordPipelineV2(
 
   if (opts?.ctx?.client || opts?.client || maxParallel <= 1) {
     if (opts?.ctx) {
-      const core = await analyzeArticleCoreWords(text, { ctx: opts.ctx });
+      const core = await analyzeArticleCoreWords(text, {
+        config: opts.ctx.config,
+        client: opts.ctx.client,
+      });
       const normalized = await normalizeArticleCoreWordsSynonyms(core, {
-        ctx: opts.ctx,
+        config: opts.ctx.config,
+        client: opts.ctx.client,
       });
       const memorySentences = await analyzeArticleMemorySentences(text, {
-        ctx: opts.ctx,
+        config: opts.ctx.config,
+        client: opts.ctx.client,
       });
       return combineArticleSentenceCoreV2(memorySentences, normalized);
     }
+    if (!opts?.config) {
+      throw new Error(
+        "articleWordPipelineV2: without ctx, pass config (MemokPipelineConfig)",
+      );
+    }
+    const cfg = opts.config;
     const client = opts?.client ?? new OpenAI();
-    const core = await analyzeArticleCoreWords(text, { client });
+    const core = await analyzeArticleCoreWords(text, {
+      config: cfg,
+      client,
+    });
     const normalized = await normalizeArticleCoreWordsSynonyms(core, {
+      config: cfg,
       client,
     });
     const memorySentences = await analyzeArticleMemorySentences(text, {
+      config: cfg,
       client,
     });
     return combineArticleSentenceCoreV2(memorySentences, normalized);
   }
 
   if (opts?.ctx) {
+    const ctx = opts.ctx;
     const branchCoreNormalize =
       async (): Promise<ArticleCoreWordsNomalizedData> => {
-        const core = await analyzeArticleCoreWords(text, { ctx: opts.ctx });
-        return normalizeArticleCoreWordsSynonyms(core, { ctx: opts.ctx });
+        const core = await analyzeArticleCoreWords(text, {
+          config: ctx.config,
+          client: ctx.client,
+        });
+        return normalizeArticleCoreWordsSynonyms(core, {
+          config: ctx.config,
+          client: ctx.client,
+        });
       };
     const branchMemory = async () =>
-      analyzeArticleMemorySentences(text, { ctx: opts.ctx });
+      analyzeArticleMemorySentences(text, {
+        config: ctx.config,
+        client: ctx.client,
+      });
     const [normalized, memorySentences] = await Promise.all([
       branchCoreNormalize(),
       branchMemory(),
@@ -69,12 +100,25 @@ export async function articleWordPipelineV2(
     return combineArticleSentenceCoreV2(memorySentences, normalized);
   }
 
+  if (!opts?.config) {
+    throw new Error(
+      "articleWordPipelineV2: without ctx, pass config (MemokPipelineConfig)",
+    );
+  }
+  const cfgParallel = opts.config;
   const branchCoreNormalize =
     async (): Promise<ArticleCoreWordsNomalizedData> => {
-      const core = await analyzeArticleCoreWords(text);
-      return normalizeArticleCoreWordsSynonyms(core);
+      const core = await analyzeArticleCoreWords(text, {
+        config: cfgParallel,
+      });
+      return normalizeArticleCoreWordsSynonyms(core, {
+        config: cfgParallel,
+      });
     };
-  const branchMemory = async () => analyzeArticleMemorySentences(text);
+  const branchMemory = async () =>
+    analyzeArticleMemorySentences(text, {
+      config: cfgParallel,
+    });
 
   const [normalized, memorySentences] = await Promise.all([
     branchCoreNormalize(),

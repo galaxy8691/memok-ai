@@ -1,19 +1,15 @@
 import type OpenAI from "openai";
 import { z } from "zod";
 import {
-  createOpenAIClient,
-  memokPipelineConfigFromProcessEnv,
-  type PipelineLlmContext,
-} from "../../config/memokPipelineConfig.js";
-import {
   isDeepseekCompatibleBaseUrlFromUrl,
   preferJsonObjectOnlyFromConfig,
   runParseOrJson,
 } from "../../llm/openaiCompat.js";
+import {
+  createOpenAIClient,
+  type MemokPipelineConfig,
+} from "../../memokPipeline.js";
 
-const ENV_MERGE_SENTENCE_MODEL = "MEMOK_MERGE_SENTENCE_LLM_MODEL";
-const ENV_MEMOK_LLM_MODEL = "MEMOK_LLM_MODEL";
-const DEFAULT_MODEL = "gpt-4o-mini";
 const DEFAULT_MAX_OUTPUT = 2048;
 const DEEPSEEK_CHAT_MAX_TOKENS_CAP = 8192;
 
@@ -24,19 +20,6 @@ export const MergeSentenceOutputSchema = z
   .strict();
 
 export type MergeSentenceOutput = z.infer<typeof MergeSentenceOutputSchema>;
-
-function resolveModel(explicit?: string): string {
-  if (explicit?.trim()) {
-    return explicit.trim();
-  }
-  for (const key of [ENV_MERGE_SENTENCE_MODEL, ENV_MEMOK_LLM_MODEL]) {
-    const v = (process.env[key] ?? "").trim();
-    if (v) {
-      return v;
-    }
-  }
-  return DEFAULT_MODEL;
-}
 
 function effectiveOutputBudget(
   forDeepseek: boolean,
@@ -59,11 +42,11 @@ export const SYSTEM_PROMPT_MERGE_SENTENCE = `你是句子合并器。输入包�
 export async function mergeSentenceText(
   baseSentence: string,
   orphanSentence: string,
-  opts?: {
+  opts: {
+    config: MemokPipelineConfig;
     client?: OpenAI;
     model?: string;
     maxTokens?: number;
-    ctx?: PipelineLlmContext;
   },
 ): Promise<string> {
   const base = baseSentence.trim();
@@ -71,45 +54,13 @@ export async function mergeSentenceText(
   if (!base || !orphan) {
     throw new Error("baseSentence and orphanSentence must be non-empty");
   }
-  if (opts?.ctx) {
-    const model = (opts.model?.trim() || opts.ctx.config.llmModel).trim();
-    const client = opts.ctx.client;
-    const deepseek = isDeepseekCompatibleBaseUrlFromUrl(
-      opts.ctx.config.openaiBaseUrl,
-    );
-    const budget = effectiveOutputBudget(
-      deepseek,
-      opts.maxTokens ?? opts.ctx.config.sentenceMergeMaxCompletionTokens,
-    );
-    const userBody = JSON.stringify({ base, orphan });
-    const out = await runParseOrJson({
-      client,
-      model,
-      messagesParse: [
-        { role: "system", content: SYSTEM_PROMPT_MERGE_SENTENCE },
-        { role: "user", content: userBody },
-      ],
-      messagesJson: [
-        {
-          role: "system",
-          content: `${SYSTEM_PROMPT_MERGE_SENTENCE}\n\n你必须只输出一个合法 JSON 对象。`,
-        },
-        { role: "user", content: `${userBody}\n\n只输出 JSON。` },
-      ],
-      schema: MergeSentenceOutputSchema,
-      responseName: "MergeSentenceOutput",
-      preferJsonObjectOnly: preferJsonObjectOnlyFromConfig(opts.ctx.config),
-      ...(deepseek ? { maxTokens: budget } : { maxCompletionTokens: budget }),
-    });
-    return out.sentence.trim();
-  }
-  const cfg = memokPipelineConfigFromProcessEnv();
-  const model = resolveModel(opts?.model);
-  const client = opts?.client ?? createOpenAIClient(cfg);
-  const deepseek = isDeepseekCompatibleBaseUrlFromUrl(cfg.openaiBaseUrl);
+  const { config } = opts;
+  const model = (opts.model?.trim() || config.llmModel).trim();
+  const client = opts.client ?? createOpenAIClient(config);
+  const deepseek = isDeepseekCompatibleBaseUrlFromUrl(config.openaiBaseUrl);
   const budget = effectiveOutputBudget(
     deepseek,
-    opts?.maxTokens ?? cfg.sentenceMergeMaxCompletionTokens,
+    opts.maxTokens ?? config.sentenceMergeMaxCompletionTokens,
   );
   const userBody = JSON.stringify({ base, orphan });
   const out = await runParseOrJson({
@@ -128,7 +79,7 @@ export async function mergeSentenceText(
     ],
     schema: MergeSentenceOutputSchema,
     responseName: "MergeSentenceOutput",
-    preferJsonObjectOnly: preferJsonObjectOnlyFromConfig(cfg),
+    preferJsonObjectOnly: preferJsonObjectOnlyFromConfig(config),
     ...(deepseek ? { maxTokens: budget } : { maxCompletionTokens: budget }),
   });
   return out.sentence.trim();

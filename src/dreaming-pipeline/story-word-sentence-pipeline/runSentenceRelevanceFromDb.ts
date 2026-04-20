@@ -1,5 +1,8 @@
 import type OpenAI from "openai";
-import type { PipelineLlmContext } from "../../config/memokPipelineConfig.js";
+import type {
+  MemokPipelineConfig,
+  PipelineLlmContext,
+} from "../../memokPipeline.js";
 import {
   type SampleSentencesForRelevanceOpts,
   sampleSentencesForRelevance,
@@ -14,6 +17,8 @@ export type RunSentenceRelevanceFromDbOpts = SampleSentencesForRelevanceOpts & {
   model?: string;
   maxTokens?: number;
   ctx?: PipelineLlmContext;
+  /** 与 `ctx` 二选一或同时提供；优先使用 `ctx.config` */
+  config?: MemokPipelineConfig;
 };
 
 export async function runSentenceRelevanceFromDb(
@@ -21,13 +26,26 @@ export async function runSentenceRelevanceFromDb(
   story: string,
   opts?: RunSentenceRelevanceFromDbOpts,
 ): Promise<SentenceRelevanceOutput> {
-  const { client, model, maxTokens, ctx, ...sampleOpts } = opts ?? {};
+  const {
+    client,
+    model,
+    maxTokens,
+    ctx,
+    config: explicitConfig,
+    ...sampleOpts
+  } = opts ?? {};
+  const config = ctx?.config ?? explicitConfig;
+  if (!config) {
+    throw new Error(
+      "runSentenceRelevanceFromDb: pass ctx (PipelineLlmContext) or config (MemokPipelineConfig)",
+    );
+  }
   const sentences = sampleSentencesForRelevance(dbPath, sampleOpts);
   return scoreSentenceRelevance(
     {
       story,
       sentences,
     },
-    { client, model, maxTokens, ctx },
+    { config, client: client ?? ctx?.client, model, maxTokens },
   );
 }

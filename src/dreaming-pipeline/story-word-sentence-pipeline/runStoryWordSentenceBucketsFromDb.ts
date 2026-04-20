@@ -2,7 +2,10 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type OpenAI from "openai";
-import type { PipelineLlmContext } from "../../config/memokPipelineConfig.js";
+import type {
+  MemokPipelineConfig,
+  PipelineLlmContext,
+} from "../../memokPipeline.js";
 import {
   type ApplyNormalWordLinkFeedbackResult,
   applyNormalWordLinkFeedback,
@@ -40,6 +43,8 @@ export type RunStoryWordSentenceBucketsFromDbOpts = {
   model?: string;
   maxTokens?: number;
   ctx?: PipelineLlmContext;
+  /** 与 `ctx` 二选一或同时提供；优先 `ctx.config` */
+  config?: MemokPipelineConfig;
   /** 测试注入 */
   sampleWordStringsFn?: typeof sampleWordStrings;
   generateDreamTextFn?: typeof generateDreamText;
@@ -90,12 +95,19 @@ export async function runStoryWordSentenceBucketsFromDb(
     opts?.mergeOrphanSentencesIntoTopScoredFn ??
     mergeOrphanSentencesIntoTopScored;
 
+  const pipelineConfig = opts?.ctx?.config ?? opts?.config;
+  if (!pipelineConfig) {
+    throw new Error(
+      "runStoryWordSentenceBucketsFromDb: pass ctx or config (MemokPipelineConfig)",
+    );
+  }
+
   const words = sampleWordsFn(dbPath, { maxWords: opts?.maxWords });
   const story = await genStoryFn(words, {
-    client: opts?.client,
+    config: pipelineConfig,
+    client: opts?.client ?? opts?.ctx?.client,
     model: opts?.model,
     maxTokens: opts?.maxTokens,
-    ctx: opts?.ctx,
   });
   const fraction = opts?.fraction ?? 0.2;
   const llmOpts = {
@@ -103,6 +115,7 @@ export async function runStoryWordSentenceBucketsFromDb(
     model: opts?.model,
     maxTokens: opts?.maxTokens,
     ctx: opts?.ctx,
+    config: pipelineConfig,
   };
   const [relevance, normalWordRelevance] = await Promise.all([
     runSentFn(dbPath, story, { fraction, ...llmOpts }),
@@ -134,13 +147,13 @@ export async function runStoryWordSentenceBucketsFromDb(
   const tempDir = mkdtempSync(join(tmpdir(), "memok-story-buckets-"));
   const tempResultPath = join(tempDir, "result.json");
   let orphanSentenceMerge: MergeOrphanResult;
-  const mergeOpts =
-    opts?.ctx !== undefined
-      ? {
-          mergeFn: (base: string, orphan: string) =>
-            mergeSentenceText(base, orphan, { ctx: opts.ctx }),
-        }
-      : undefined;
+  const mergeOpts = {
+    mergeFn: (base: string, orphan: string) =>
+      mergeSentenceText(base, orphan, {
+        config: pipelineConfig,
+        client: opts?.client ?? opts?.ctx?.client,
+      }),
+  };
   try {
     writeFileSync(tempResultPath, JSON.stringify(payload), "utf-8");
     orphanSentenceMerge = await mergeOrphanFn(

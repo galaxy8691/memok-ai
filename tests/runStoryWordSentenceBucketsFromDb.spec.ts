@@ -1,10 +1,22 @@
 import { describe, expect, it } from "vitest";
 import { runStoryWordSentenceBucketsFromDb } from "../src/dreaming-pipeline/story-word-sentence-pipeline/index.js";
+import type { MemokPipelineConfig } from "../src/memokPipeline.js";
+
+const stubPipelineConfig: MemokPipelineConfig = {
+  dbPath: "/tmp/x.sqlite",
+  openaiApiKey: "test-key",
+  llmModel: "gpt-4o-mini",
+  llmMaxWorkers: 1,
+  articleSentencesMaxOutputTokens: 8192,
+  coreWordsNormalizeMaxOutputTokens: 32768,
+  sentenceMergeMaxCompletionTokens: 2048,
+};
 
 describe("runStoryWordSentenceBucketsFromDb", () => {
   it("runs both branches in parallel then orphan cleanup", async () => {
     const order: string[] = [];
     const out = await runStoryWordSentenceBucketsFromDb("/tmp/x.sqlite", {
+      config: stubPipelineConfig,
       sampleWordStringsFn: () => {
         order.push("words");
         return ["a"];

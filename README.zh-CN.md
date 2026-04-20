@@ -70,13 +70,15 @@ npm install
 
 ## 安装方法
 
-### 1）作为 CLI 本地使用
+### 1）克隆本仓库做库开发
 
 ```bash
-cp .env.example .env
+npm install
 npm run build
-npm run dev -- --help
+npm test
 ```
+
+涉及 LLM 的测试需在 shell 中设置 `OPENAI_API_KEY` 等变量；详见 [CONTRIBUTING.md](./CONTRIBUTING.md)。本仓库**不会**读取 `.env` 文件。
 
 ### 2）通过 npm 安装为项目依赖
 
@@ -91,18 +93,16 @@ npm install memok-ai
 import {
   articleWordPipelineV2,
   buildPipelineContext,
-  memokPipelineConfigFromProcessEnv,
 } from "memok-ai";
 
 // 网关 / OpenClaw 类宿主常用的稳定子集
 import {
   articleWordPipeline,
   dreamingPipeline,
-  memokPipelineConfigFromProcessEnv,
 } from "memok-ai/bridge";
 ```
 
-`memok-ai/bridge` 上的编排入口（如 `articleWordPipeline`、`dreamingPipeline`）直接接收完整的 `MemokPipelineConfig`（或 `DreamingPipelineConfig` 等扩展类型）。若需要给只认 `{ ctx }` 的低层流水线组 `ctx`，请从主包 `memok-ai` 导入 `buildPipelineContext`。本仓库 CLI 使用 `memokPipelineConfigFromProcessEnv()`（每次调用会先合并项目根 `.env`）并结合主包的 `buildPipelineContext`。
+`memok-ai/bridge` 上的编排入口（如 `articleWordPipeline`、`dreamingPipeline`）直接接收完整的 `MemokPipelineConfig`（或 `DreamingPipelineConfig` 等扩展类型）。若需要给只认 `{ ctx }` 的低层流水线组 `ctx`，请从主包 `memok-ai` 导入 `buildPipelineContext` 并传入得到的 `PipelineLlmContext`。
 
 ```ts
 import { articleWordPipeline } from "memok-ai/bridge";
@@ -121,7 +121,7 @@ await articleWordPipeline(longText, {
 
 - 需要 **Node.js ≥20**（与本仓库一致）。
 - 依赖 **`better-sqlite3`**（原生模块）：首次安装可能触发预编译下载或本地编译，耗时与「克隆本仓库后 `npm install`」类似。
-- **运行时**：`memokPipelineConfigFromProcessEnv()`（`memok-ai/bridge` 亦导出）会先把项目根 `.env` 合并进 `process.env`（不覆盖已有变量），再返回 `MemokPipelineConfig`（含 `dbPath`：`MEMOK_DB_PATH` 或默认 `./memok.sqlite`）。生产环境推荐自行组装 `MemokPipelineConfig`（TOML、`ConfigService` 等），不必依赖 `.env`。
+- **库用法**：自行组装 `MemokPipelineConfig` 并传入 bridge。
 
 ### 3）作为 OpenClaw 插件使用
 
@@ -198,52 +198,9 @@ openclaw memok setup
 
 若在安装脚本之外修改插件或配置，请自行重启网关以便运行中的进程加载新配置（例如 `openclaw gateway restart`）。
 
-## 命令行参考
-
-`npm run dev -- --help` 与各子命令的 `--help` 为**英文**说明（与代码中 Commander 文案一致）。下表为中文用途速查（示例仍用 `npm run dev --`；安装 CLI 后可改用 `memok-ai`）。
-
-| 子命令 | 说明 |
-| --- | --- |
-| `article-core-words <文章路径>` | 从文章文本抽取 core words |
-| `article-core-words-normalize` | 读取 core_words JSON，做同义词归一 |
-| `article-sentences <文章路径>` | 抽取面向记忆的句子 |
-| `article-sentence-core-combine` | 合并 sentences 与 normalize 输出为二元组 |
-| `article-word-pipeline <文章路径>` | 一步跑完整 article-word 流水线 |
-| `extract-memory-sentences --db …` | 从 SQLite 按词抽样关联记忆句 |
-| `dreaming-pipeline --db …` | predream 衰减 + story-word-sentence 全流程 |
-| `predream-decay --db …` | 仅 predream（duration 与短期句处理） |
-| `story-word-sentence-buckets --db …` | 单轮完整分桶+回写+清理 |
-| `story-word-sentence-pipeline --db …` | 同一库上多轮 buckets（随机轮数） |
-| `harden-db --db …` | 清理无效/重复 link 并建索引 |
-| `import-awp-v2-tuple --from-json … --db …` | 将 AWP v2 元组 JSON 导入库 |
-
-## 快速示例（CLI）
-
-执行文章流水线：
-
-```bash
-npm run dev -- article-word-pipeline ./articles/article1.txt > out/awp_v2_tuple.json
-```
-
-导入 SQLite：
-
-```bash
-npm run dev -- import-awp-v2-tuple --from-json out/awp_v2_tuple.json --db ./memok.sqlite
-```
-
-抽样记忆句：
-
-```bash
-npm run dev -- extract-memory-sentences --db ./memok.sqlite
-```
-
 ## Dreaming
 
-一键运行并输出合并报告：
-
-```bash
-npm run dev -- dreaming-pipeline --db ./memok.sqlite
-```
+在代码中从 `memok-ai/bridge` 调用 `dreamingPipeline`，传入 `DreamingPipelineConfig`（见导出类型）。OpenClaw 插件在同一核心函数之上配置定时任务。
 
 `dreamingPipeline` 每次执行结束（成功或失败）都会在 SQLite 的 `dream_logs` 表追加一行。传入单个 `DreamingPipelineConfig`：`MemokPipelineConfig`、必填 `dreamLogWarn`，以及可选的故事调参（`maxWords` / `fraction` / `minRuns` / `maxRuns`）。OpenClaw 插件定时 dreaming 即依赖该核心行为。字段包括：
 
@@ -252,15 +209,32 @@ npm run dev -- dreaming-pipeline --db ./memok.sqlite
 - `status`（`ok` / `error`）
 - `log_json`（完整 JSON 结果）
 
-## 配置优先级说明（重要）
+## 配置优先级说明（OpenClaw 插件）
 
-对 `OPENAI_API_KEY`、`OPENAI_BASE_URL`、`MEMOK_LLM_MODEL`：
+对 `OPENAI_API_KEY`、`OPENAI_BASE_URL`、`MEMOK_LLM_MODEL`（使用独立 OpenClaw 插件时）：
 
 1. 进程已有环境变量优先
 2. 插件配置仅补齐缺失值，不覆盖已有值
-3. `.env` 主要用于本地开发与 CLI 调试
 
-因此纯插件用户可直接用 `openclaw memok setup`，不强制要求本地 `.env`。
+本核心库**从不**加载 `.env`；密钥请通过进程管理器或网关注入。
+
+## 环境变量
+
+供测试与仍从 `process.env` 读各阶段覆盖项的旧路径参考；库集成方应显式构造 `MemokPipelineConfig`。
+
+| 变量 | 是否必填 | 说明 |
+| --- | --- | --- |
+| `OPENAI_API_KEY` | 走 env 组装时**必填** | 兼容 OpenAI 的 API Key |
+| `OPENAI_BASE_URL` | 否 | 网关 / 代理 Base URL |
+| `MEMOK_LLM_MODEL` | 否 | 默认 `gpt-4o-mini` |
+| `MEMOK_DB_PATH` | 否 | 默认 `./memok.sqlite` |
+| `MEMOK_LLM_MAX_WORKERS` | 否 | `<=1` 串行；上限 64 |
+| `MEMOK_V2_ARTICLE_SENTENCES_MAX_OUTPUT_TOKENS` | 否 | 默认 8192（有上下限） |
+| `MEMOK_CORE_WORDS_NORMALIZE_MAX_OUTPUT_TOKENS` | 否 | 默认 32768（有上下限） |
+| `MEMOK_SENTENCE_MERGE_MAX_COMPLETION_TOKENS` | 否 | 默认 2048（有上下限） |
+| `MEMOK_SKIP_LLM_STRUCTURED_PARSE` | 否 | `1` / `true` / `yes` / `on` |
+
+各阶段专用模型等环境变量名见源码中 `resolveModel` 等辅助函数。
 
 ## 贡献指南
 

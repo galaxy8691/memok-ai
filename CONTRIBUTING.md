@@ -8,8 +8,9 @@ Thanks for contributing.
 
 ```bash
 npm install
-cp .env.example .env
 ```
+
+Set `OPENAI_API_KEY` (and optional `MEMOK_*` variables) in your shell before running tests that exercise env-based setup; this repo does not load `.env` files.
 
 Useful commands:
 
@@ -17,7 +18,6 @@ Useful commands:
 npm run lint
 npm run build
 npm test
-npm run dev -- --help
 ```
 
 Formatting and linting use [Biome](https://biomejs.dev/) (`biome.json` at repo root). CI runs `npm run lint` before build.
@@ -34,7 +34,7 @@ Before opening a PR:
 - Keep changes focused (one problem per PR when possible)
 - Add or update tests for behavior changes
 - Run `npm run lint`, `npm run build`, and `npm test`
-- Update docs when CLI behavior changes; plugin install docs belong in [memok-ai-openclaw](https://github.com/galaxy8691/memok-ai-openclaw)
+- Update docs when published library behavior changes; plugin install docs belong in [memok-ai-openclaw](https://github.com/galaxy8691/memok-ai-openclaw)
 - Include a clear summary: what changed, why, and how it was verified
 
 ## SQLite connections

@@ -1,4 +1,4 @@
-import type { MemokPipelineConfig } from "../config/memokPipelineConfig.js";
+import type { MemokPipelineConfig } from "../memokPipeline.js";
 import { openSqlite } from "./openSqlite.js";
 
 /** {@link applySentenceUsageFeedback} 入参：显式流水线配置 + 句子 id 列表 + 可选「视为今日」日期 */

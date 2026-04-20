@@ -1,30 +1,13 @@
 import type OpenAI from "openai";
+import { isDeepseekCompatibleBaseUrlFromUrl } from "../../llm/openaiCompat.js";
 import {
   createOpenAIClient,
-  memokPipelineConfigFromProcessEnv,
-  type PipelineLlmContext,
-} from "../../config/memokPipelineConfig.js";
-import { isDeepseekCompatibleBaseUrlFromUrl } from "../../llm/openaiCompat.js";
+  type MemokPipelineConfig,
+} from "../../memokPipeline.js";
 
-const ENV_DREAMING_MODEL = "MEMOK_DREAMING_LLM_MODEL";
-const ENV_MEMOK_LLM_MODEL = "MEMOK_LLM_MODEL";
-const DEFAULT_MODEL = "gpt-4o-mini";
 /** 与 SYSTEM_PROMPT 中「约 1000～3000 字」相称，避免长文被截断 */
 const DEFAULT_MAX_OUTPUT = 8192;
 const DEEPSEEK_CHAT_MAX_TOKENS_CAP = 8192;
-
-function resolveDreamingModel(explicit?: string): string {
-  if (explicit?.trim()) {
-    return explicit.trim();
-  }
-  for (const key of [ENV_DREAMING_MODEL, ENV_MEMOK_LLM_MODEL]) {
-    const v = (process.env[key] ?? "").trim();
-    if (v) {
-      return v;
-    }
-  }
-  return DEFAULT_MODEL;
-}
 
 function effectiveMaxTokens(forDeepseek: boolean, explicit?: number): number {
   const cap = explicit ?? DEFAULT_MAX_OUTPUT;
@@ -46,50 +29,23 @@ export const SYSTEM_PROMPT_DREAM = `你是梦幻叙事作者。用户会给你�
  */
 export async function generateDreamText(
   keywords: string[],
-  opts?: {
+  opts: {
+    config: MemokPipelineConfig;
     client?: OpenAI;
     model?: string;
     maxTokens?: number;
-    ctx?: PipelineLlmContext;
   },
 ): Promise<string> {
   if (keywords.length === 0) {
     throw new Error("keywords must be non-empty");
   }
-  if (opts?.ctx) {
-    const model = (opts.model?.trim() || opts.ctx.config.llmModel).trim();
-    const client = opts.ctx.client;
-    const deepseek = isDeepseekCompatibleBaseUrlFromUrl(
-      opts.ctx.config.openaiBaseUrl,
-    );
-    const maxTok = effectiveMaxTokens(
-      deepseek,
-      opts.maxTokens ?? opts.ctx.config.articleSentencesMaxOutputTokens,
-    );
-    const userBody = `以下为关键词（JSON 数组），请按要求写一段梦幻叙事正文：\n${JSON.stringify(keywords)}`;
-    const completion = await client.chat.completions.create({
-      model,
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT_DREAM },
-        { role: "user", content: userBody },
-      ],
-      ...(deepseek
-        ? { max_tokens: maxTok }
-        : { max_completion_tokens: maxTok }),
-    });
-    const raw = completion.choices[0]?.message?.content;
-    if (typeof raw !== "string" || !raw.trim()) {
-      throw new Error("LLM returned empty dream text");
-    }
-    return raw.trim();
-  }
-  const cfg = memokPipelineConfigFromProcessEnv();
-  const model = resolveDreamingModel(opts?.model);
-  const client = opts?.client ?? createOpenAIClient(cfg);
-  const deepseek = isDeepseekCompatibleBaseUrlFromUrl(cfg.openaiBaseUrl);
+  const { config } = opts;
+  const model = (opts.model?.trim() || config.llmModel).trim();
+  const client = opts.client ?? createOpenAIClient(config);
+  const deepseek = isDeepseekCompatibleBaseUrlFromUrl(config.openaiBaseUrl);
   const maxTok = effectiveMaxTokens(
     deepseek,
-    opts?.maxTokens ?? cfg.articleSentencesMaxOutputTokens,
+    opts.maxTokens ?? config.articleSentencesMaxOutputTokens,
   );
   const userBody = `以下为关键词（JSON 数组），请按要求写一段梦幻叙事正文：\n${JSON.stringify(keywords)}`;
   const completion = await client.chat.completions.create({

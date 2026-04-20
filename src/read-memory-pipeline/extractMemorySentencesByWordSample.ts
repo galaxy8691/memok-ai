@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { MemokPipelineConfig } from "../config/memokPipelineConfig.js";
+import type { MemokPipelineConfig } from "../memokPipeline.js";
 import { openSqlite } from "../sqlite/openSqlite.js";
 
 /** 经本次 words 抽样、经哪条「词 → 规范词」边连到该句（仅保留抽样顺序下最先命中的那一对） */

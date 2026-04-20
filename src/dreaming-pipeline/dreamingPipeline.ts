@@ -2,7 +2,7 @@ import {
   buildPipelineContext,
   type MemokPipelineConfig,
   type PipelineLlmContext,
-} from "../config/memokPipelineConfig.js";
+} from "../memokPipeline.js";
 import { persistDreamPipelineLogToDb } from "../sqlite/persistDreamPipelineLog.js";
 import {
   type PredreamDecayResult,

@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import Database from "better-sqlite3";
 import { describe, expect, it } from "vitest";
-import type { MemokPipelineConfig } from "../src/config/memokPipelineConfig.js";
+import type { MemokPipelineConfig } from "../src/memokPipeline.js";
 import { extractMemorySentencesByWordSample } from "../src/read-memory-pipeline/extractMemorySentencesByWordSample.js";
 
 function dummyMemokConfig(dbPath: string): MemokPipelineConfig {

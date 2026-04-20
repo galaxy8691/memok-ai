@@ -59,13 +59,15 @@ npm install
 
 ## Installation
 
-### 1) Use as CLI (local development)
+### 1) Work from a clone (library development)
 
 ```bash
-cp .env.example .env
+npm install
 npm run build
-npm run dev -- --help
+npm test
 ```
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for lint/CI and for setting `OPENAI_API_KEY` when running tests that hit LLMs. This package does **not** read `.env` files.
 
 ### 2) Install from npm (use as a library)
 
@@ -80,18 +82,16 @@ npm install memok-ai
 import {
   articleWordPipelineV2,
   buildPipelineContext,
-  memokPipelineConfigFromProcessEnv,
 } from "memok-ai";
 
 // Stable subset for gateways / OpenClaw-style hosts
 import {
   articleWordPipeline,
   dreamingPipeline,
-  memokPipelineConfigFromProcessEnv,
 } from "memok-ai/bridge";
 ```
 
-Bridge entrypoints (`articleWordPipeline`, `dreamingPipeline`, etc.) take a full `MemokPipelineConfig` (or extended types such as `DreamingPipelineConfig`). For low-level pipelines that accept `{ ctx }`, import `buildPipelineContext` from the main `memok-ai` package instead. This repo’s CLI uses `memokPipelineConfigFromProcessEnv()` (merges project root `.env` on each call) plus `buildPipelineContext` from the library root.
+Bridge entrypoints (`articleWordPipeline`, `dreamingPipeline`, etc.) take a full `MemokPipelineConfig` (or extended types such as `DreamingPipelineConfig`). For low-level pipelines that accept `{ ctx }`, import `buildPipelineContext` from the main `memok-ai` package and pass the resulting `PipelineLlmContext`.
 
 ```ts
 import { articleWordPipeline } from "memok-ai/bridge";
@@ -110,7 +110,7 @@ await articleWordPipeline(longText, {
 
 - Requires **Node.js ≥20** (same as this repo).
 - **`better-sqlite3`** is a native dependency: first install may compile or download prebuilds (similar to cloning this repo and running `npm install`).
-- At **runtime**, `memokPipelineConfigFromProcessEnv()` (also exported on `memok-ai/bridge`) merges the project root `.env` into `process.env` (without overriding existing variables), then returns a `MemokPipelineConfig` including `dbPath` from `MEMOK_DB_PATH` or default `./memok.sqlite`. For production-style hosts, prefer constructing `MemokPipelineConfig` yourself (TOML, `ConfigService`, etc.) and skip env-based assembly.
+- **Libraries**: construct `MemokPipelineConfig` yourself (TOML, `ConfigService`, etc.) and pass it into bridge APIs.
 
 The OpenClaw plugin repo may list this package under an alias such as `memok-ai-core`; the registry name remains **`memok-ai`**.
 
@@ -173,58 +173,9 @@ The setup wizard lets you configure:
 
 If you change plugins or config outside the installer, restart the gateway so the running process picks them up (for example `openclaw gateway restart`).
 
-## CLI reference
-
-`memok-ai --help` and subcommands use **English** descriptions. For a Chinese walkthrough of each command, see [README.zh-CN.md](./README.zh-CN.md#命令行参考).
-
-| Command | Purpose |
-| --- | --- |
-| `article-core-words` | Extract core words from an article file |
-| `article-core-words-normalize` | Normalize synonyms from core-words JSON |
-| `article-sentences` | Extract memory-oriented sentences |
-| `article-sentence-core-combine` | Combine sentences + normalized words tuple |
-| `article-word-pipeline` | Full article-word pipeline to tuple JSON |
-| `extract-memory-sentences` | Sample memory sentences from SQLite |
-| `dreaming-pipeline` | Predream + story-word-sentence pipeline |
-| `predream-decay` | Predream decay pass only |
-| `story-word-sentence-buckets` | One full story/word/sentence bucket pass |
-| `story-word-sentence-pipeline` | Multiple bucket passes (random run count) |
-| `harden-db` | Clean links and add indexes |
-| `import-awp-v2-tuple` | Import AWP v2 tuple JSON into SQLite |
-
-## Quick CLI Example
-
-Run one-shot article pipeline:
-
-```bash
-npm run dev -- article-word-pipeline ./articles/article1.txt > out/awp_v2_tuple.json
-```
-
-Import tuple into SQLite:
-
-```bash
-npm run dev -- import-awp-v2-tuple --from-json out/awp_v2_tuple.json --db ./memok.sqlite
-```
-
-Extract sampled memory sentences:
-
-```bash
-npm run dev -- extract-memory-sentences --db ./memok.sqlite
-```
-
 ## Dreaming
 
-One-shot merged report:
-
-```bash
-npm run dev -- dreaming-pipeline --db ./memok.sqlite
-```
-
-With custom options:
-
-```bash
-npm run dev -- dreaming-pipeline --db ./memok.sqlite --max-words 10 --fraction 0.2 --min-runs 3 --max-runs 5
-```
+Call `dreamingPipeline` from `memok-ai/bridge` with a `DreamingPipelineConfig` (see exported types). The OpenClaw plugin wires cron scheduling on top of the same core function.
 
 Each `dreamingPipeline` completion (success or failure) appends a row to SQLite table `dream_logs`. Pass a single `DreamingPipelineConfig` object: `MemokPipelineConfig` plus required `dreamLogWarn`, plus optional story tuning (`maxWords` / `fraction` / `minRuns` / `maxRuns`). When the OpenClaw plugin uses dreaming cron, it relies on this core behavior. Columns:
 
@@ -233,15 +184,32 @@ Each `dreamingPipeline` completion (success or failure) appends a row to SQLite 
 - `status` (`ok` / `error`)
 - `log_json` (full run payload)
 
-## Configuration Priority (Important)
+## Configuration priority (OpenClaw plugin)
 
-For `OPENAI_API_KEY`, `OPENAI_BASE_URL`, and `MEMOK_LLM_MODEL`:
+For `OPENAI_API_KEY`, `OPENAI_BASE_URL`, and `MEMOK_LLM_MODEL` when using the separate OpenClaw plugin:
 
-1. Existing process environment variables win
-2. Plugin config only fills missing values
-3. `.env` is mainly for development/CLI usage
+1. Existing process environment variables win.
+2. Plugin config only fills missing values.
 
-So plugin users can rely on `openclaw memok setup` without requiring a local `.env`.
+This core library never loads `.env` files; inject secrets via your process manager or gateway.
+
+## Environment variables
+
+Used by tests and by legacy no-`ctx` code paths that still read `process.env` for per-stage overrides. Library callers should assemble `MemokPipelineConfig` explicitly.
+
+| Variable | Required | Notes |
+| --- | --- | --- |
+| `OPENAI_API_KEY` | **Yes** (for env-based config) | OpenAI-compatible API key |
+| `OPENAI_BASE_URL` | No | Gateway / proxy base URL |
+| `MEMOK_LLM_MODEL` | No | Default `gpt-4o-mini` |
+| `MEMOK_DB_PATH` | No | Default `./memok.sqlite` |
+| `MEMOK_LLM_MAX_WORKERS` | No | `<=1` serial; cap 64 |
+| `MEMOK_V2_ARTICLE_SENTENCES_MAX_OUTPUT_TOKENS` | No | Default 8192 (clamped) |
+| `MEMOK_CORE_WORDS_NORMALIZE_MAX_OUTPUT_TOKENS` | No | Default 32768 (clamped) |
+| `MEMOK_SENTENCE_MERGE_MAX_COMPLETION_TOKENS` | No | Default 2048 (clamped) |
+| `MEMOK_SKIP_LLM_STRUCTURED_PARSE` | No | `1` / `true` / `yes` / `on` |
+
+Per-stage model env names (e.g. `MEMOK_V2_ARTICLE_CORE_WORDS_LLM_MODEL`) are documented in source `resolveModel` helpers.
 
 ## Contributing
 

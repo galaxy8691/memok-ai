@@ -9,13 +9,12 @@
 
 export type { ArticleWordPipelineSaveDbOptions } from "./article-word-pipeline/v2/articleWordPipeline.js";
 export { articleWordPipeline } from "./article-word-pipeline/v2/articleWordPipeline.js";
-export type { MemokPipelineConfig } from "./config/memokPipelineConfig.js";
-export { memokPipelineConfigFromProcessEnv } from "./config/memokPipelineConfig.js";
 export {
   type DreamingPipelineConfig,
   type DreamingPipelineResult,
   dreamingPipeline,
 } from "./dreaming-pipeline/dreamingPipeline.js";
+export type { MemokPipelineConfig } from "./memokPipeline.js";
 export {
   type ExtractMemorySentencesByWordSampleInput,
   extractMemorySentencesByWordSample,
