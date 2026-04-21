@@ -2,13 +2,44 @@
 
 [English](./README.md) | 简体中文 · 官网：[memok-ai.com](https://www.memok-ai.com/)
 
-**Gitee 镜像（中文 / 境内安装入口）：** [gitee.com/wik20/memok-ai](https://gitee.com/wik20/memok-ai)。下文安装命令中的脚本与 `git clone` 均指向本仓库 Gitee 镜像（`wik20/memok-ai`）。若你使用 fork 后的地址，请自行替换 URL。在 Gitee 网页端可将仓库 **「展示 README」** 设为 `README.zh-CN.md`，便于只阅读中文版。
+**Gitee 镜像（中文 / 境内安装入口）：** [gitee.com/wik20/memok-ai](https://gitee.com/wik20/memok-ai)。若你使用 fork 后的地址，请自行替换 URL。在 Gitee 网页端可将仓库 **「展示 README」** 设为 `README.zh-CN.md`，便于只阅读中文版。
 
-**双远端推送（示例）：** `git remote add gitee https://gitee.com/wik20/memok-ai.git`（若尚未添加），之后与 GitHub 相同分支一并推送即可，例如 `git push origin main` 与 `git push gitee main`（将 `origin` / `gitee` 换成你的 remote 名）。Gitee 与 GitHub 可保持同一分支内容；仅首页展示语言通过上述 README 设置区分。
+**双远端推送（示例）：** `git remote add gitee https://gitee.com/wik20/memok-ai.git`（若尚未添加），之后与 GitHub 相同分支一并推送即可，例如 `git push origin main` 与 `git push gitee main`（将 `origin` / `gitee` 换成你的 remote 名）。
 
 `memok-ai` 是一个基于 Node.js + TypeScript 的记忆流水线项目，用 OpenAI 兼容接口提取长文/对话记忆并写入 SQLite，支持召回、强化和 dreaming 流程。
 
-**OpenClaw 网关插件（独立仓库）：** [galaxy8691/memok-ai-openclaw](https://github.com/galaxy8691/memok-ai-openclaw) — 以 npm 依赖 **`memok-ai-core`** 引用本仓库，并暴露稳定入口 **`memok-ai-core/bridge`**。
+**OpenClaw 网关插件（独立仓库）：** [galaxy8691/memok-ai-openclaw](https://github.com/galaxy8691/memok-ai-openclaw) — 以 npm 依赖 **`memok-ai-core`** 引用本包，并暴露稳定入口 **`memok-ai-core/bridge`**。
+
+> **若你从插件文档跳转过来：** 一键安装脚本、`openclaw memok setup`、**网关与 plugin API 版本要求** 均在 **[memok-ai-openclaw](https://github.com/galaxy8691/memok-ai-openclaw)** 维护。**本文档**说明 **`memok-ai` npm 核心库**：SQLite 形态、`MemokPipelineConfig`，以及**你自己的 Node 进程**如何调用 `memok-ai` 或 `memok-ai/bridge`。
+
+### 插件如何调用本核心库
+
+网关加载扩展；扩展依赖 **`memok-ai`**（依赖名常为 `memok-ai-core`）并调用 **bridge** API。SQLite 路径仍在插件 / 宿主侧配置。
+
+```mermaid
+flowchart LR
+  subgraph host [OpenClawHost]
+    Gateway[GatewayProcess]
+  end
+  subgraph pluginRepo [memok-ai-openclaw]
+    Ext[PluginExtension]
+  end
+  subgraph corePkg [memok-ai npm]
+    Bridge["memok-ai/bridge"]
+    Db[(SQLite file)]
+  end
+  Gateway --> Ext
+  Ext --> Bridge
+  Bridge --> Db
+```
+
+**不使用 OpenClaw**（自建 API、批处理、CLI）：
+
+```mermaid
+flowchart LR
+  App[YourNodeApp] --> Entry["memok-ai 或 memok-ai/bridge"]
+  Entry --> Db[(SQLite file)]
+```
 
 ## 功能概览
 
@@ -50,9 +81,9 @@
 - Node.js **≥20**（建议 LTS）
 - npm
 
-**OpenClaw 插件：**网关 **≥2026.3.24**、plugin API **≥2026.3.24**（见 [package.json](package.json) 中的 `openclaw.compat`）。
+**OpenClaw 用户：** 支持的网关与 plugin API 版本见 **[memok-ai-openclaw](https://github.com/galaxy8691/memok-ai-openclaw)** 文档（本核心仓库的 `package.json` **不再**声明 `openclaw.compat`）。
 
-安装依赖：
+在本仓库内开发时安装依赖：
 
 ```bash
 npm install
@@ -60,13 +91,7 @@ npm install
 
 ### 关于首次安装耗时（请先看）
 
-本仓库 **npm 依赖里不声明 `openclaw`**（插件在网关进程里由宿主解析 `openclaw/plugin-sdk/...`）。首次 `npm install` 的耗时主要来自 **`better-sqlite3` 等原生模块**（预编译下载或本地编译）以及其余 JS 依赖，常见 **数分钟级**（视网络与磁盘而定）；若日志长时间停在某个包的 **`install`/`postinstall`**，多为正常编译或下载，不是死机。
-
-建议：
-
-- **不要用** `--loglevel verbose` 日常安装，否则几千行 `npm http cache` 会像「卡死」。
-- 项目根目录 **`.npmrc`** 已配置 **npmmirror** 并关闭镜像站不支持的 `audit` 请求；**中国大陆**请优先用下文 **`install-cn-linux-macos.sh`**（脚本内也会设国内 npm 源）。
-- **同一台机器、同一 npm 缓存**下第二次安装或后续 `npm ci` 会快很多。
+首次在本仓库执行 `npm install` 的耗时主要来自 **`better-sqlite3` 等原生模块**（预编译下载或本地编译）以及其余 JS 依赖，常见 **数分钟级**（视网络与磁盘而定）。**不要用** `--loglevel verbose` 日常安装，否则日志量极大。项目根目录 **`.npmrc`** 已配置 **npmmirror** 并关闭镜像站不支持的 `audit` 请求；**中国大陆** 可继续用 Gitee 克隆本仓库以加速源码拉取。**同一 npm 缓存**下后续安装会快很多。
 
 ## 安装方法
 
@@ -78,11 +103,18 @@ npm run build
 npm test
 ```
 
-涉及 LLM 的测试需在 shell 中设置 `OPENAI_API_KEY` 等变量；详见 [CONTRIBUTING.md](./CONTRIBUTING.md)。本仓库**不会**读取 `.env` 文件。
+**开发流程简述**
+
+- `npm install` — 会触发 **`prepare` → `npm run build`**（见 [package.json](package.json)），将 TypeScript 编译到 `dist/`。
+- **`npm run build`** — 仅 `tsc`；若你跳过 install，改源码后需手动执行。
+- **`npm test`** — Vitest；若设置了 `OPENAI_API_KEY`，部分测试会请求真实 LLM（见 [CONTRIBUTING.md](./CONTRIBUTING.md)）。
+- **`npm run ci`** — Biome + build + test，与 CI 一致。
+
+本仓库**不会**读取 `.env`；请在 shell 或编辑器环境中导出变量。
 
 ### 2）通过 npm 安装为项目依赖
 
-npm 包名：**[`memok-ai`](https://www.npmjs.com/package/memok-ai)**（与 registry 一致；OpenClaw 插件仓库里可能用别名 **`memok-ai-core`** 写在 `package.json` 中，安装来源仍是本包）。
+npm 包名：**[`memok-ai`](https://www.npmjs.com/package/memok-ai)**（OpenClaw 插件侧可能用别名 **`memok-ai-core`**，registry 名仍为 **`memok-ai`**）。
 
 ```bash
 npm install memok-ai
@@ -120,94 +152,104 @@ await articleWordPipeline(longText, {
 ```
 
 - 需要 **Node.js ≥20**（与本仓库一致）。
-- 依赖 **`better-sqlite3`**（原生模块）：首次安装可能触发预编译下载或本地编译，耗时与「克隆本仓库后 `npm install`」类似。
+- 依赖 **`better-sqlite3`**（原生模块）：首次安装可能触发预编译下载或本地编译。
 - **库用法**：自行组装 `MemokPipelineConfig` 并传入 bridge。
+
+### 在你自己的 Node.js 项目中使用
+
+1. 在你的应用里执行 **`npm install memok-ai`**（不必在本仓库内）。
+2. 确定 **`dbPath`**。若要**新建空库**，可调用一次 **`createFreshMemokSqliteFile(dbPath)`**（来自 `memok-ai` 或 `memok-ai/bridge`），会创建表、`dream_logs` 与 link 索引；若文件已存在且未传 **`{ replace: true }`** 会抛错。
+3. 组装 **`MemokPipelineConfig`**（字段与上文示例一致）。本库**从不**加载 `.env`；密钥请用你应用已有的方式注入（自管 `dotenv`、systemd、K8s Secret 等）。
+4. 按需选择 **`memok-ai/bridge`**（稳定小面）或 **`memok-ai`**（全量导出：`articleWordPipelineV2`、`buildPipelineContext`、dreaming 子路径、`hardenDb` 等）。
+
+| 导入 | 适用场景 |
+| --- | --- |
+| **`memok-ai/bridge`** | 网关、Bot 宿主、或只需文章落库 / dreaming / 召回 / 反馈 / 建库的精简服务。 |
+| **`memok-ai`** | 需要 `buildPipelineContext`、仅要 v2 元组不落库、或更多 SQLite / dreaming 子模块时。 |
+
+### 核心库 vs OpenClaw 插件
+
+| 场景 | 建议 |
+| --- | --- |
+| 已使用 **OpenClaw**，需要按轮召回、上报、定时 dreaming | 安装 **[memok-ai-openclaw](https://github.com/galaxy8691/memok-ai-openclaw)**，按其 README 执行 `openclaw plugins install …`、`openclaw memok setup`；该包依赖 **`memok-ai` / `memok-ai-core`** 并调用 **`…/bridge`**。 |
+| 自建 **HTTP / 队列 / CLI** 等非 OpenClaw 宿主 | 直接依赖 **`memok-ai`**（可仅用 **`memok-ai/bridge`** 收敛 API 面）。 |
+| 只需 **长文写入 SQLite** | 使用 `articleWordPipeline`（bridge）即可；召回与 dreaming 可选。 |
+
+**文档分工：** **插件仓库**写网关、安装脚本与向导；**本仓库**写 **库 API** 与 SQLite 行为。
+
+### 端到端示例（你的项目）
+
+以下用 **`memok-ai/bridge`** 与 `process.env` **仅作演示**；生产环境请换成你的配置来源。
+
+```ts
+// 例如 your-service/src/memokExample.ts
+import {
+  type MemokPipelineConfig,
+  createFreshMemokSqliteFile,
+  articleWordPipeline,
+  extractMemorySentencesByWordSample,
+  applySentenceUsageFeedback,
+} from "memok-ai/bridge";
+
+const dbPath = "./data/memok.sqlite";
+createFreshMemokSqliteFile(dbPath); // 新建库时执行一次；已有库请省略（或有意使用 { replace: true } 覆盖）
+
+const memok: MemokPipelineConfig = {
+  dbPath,
+  openaiApiKey: process.env.OPENAI_API_KEY!,
+  openaiBaseUrl: process.env.OPENAI_BASE_URL,
+  llmModel: "gpt-4o-mini",
+  llmMaxWorkers: 4,
+  articleSentencesMaxOutputTokens: 8192,
+  coreWordsNormalizeMaxOutputTokens: 32768,
+  sentenceMergeMaxCompletionTokens: 2048,
+  // 可选（见 CHANGELOG.md）：
+  // articleWordImportInitialWeight, articleWordImportInitialDuration,
+  // dreamShortTermToLongTermWeightThreshold（供 dreamingPipeline 使用）,
+};
+
+await articleWordPipeline("长文或合并后的对话摘要 …", memok);
+
+const recall = extractMemorySentencesByWordSample({ ...memok, fraction: 0.2 });
+// 将 recall.sentences 拼进你的提示词
+
+applySentenceUsageFeedback({
+  ...memok,
+  sentenceIds: recall.sentences.map((s) => s.id),
+});
+```
+
+若只要 **v2 元组而不写库**，请改用主包 **`articleWordPipelineV2`** + **`buildPipelineContext`**。
 
 ### 3）作为 OpenClaw 插件使用
 
-推荐脚本安装：
+**请以插件仓库为准：**
+
+- 一键脚本、`openclaw memok setup`、兼容矩阵与排障说明均在 **[memok-ai-openclaw](https://github.com/galaxy8691/memok-ai-openclaw)**。
+- 本 **memok-ai** 仓库是**被依赖的核心库**；旧文档若指向本仓库下的 `scripts/` 路径，**可能随分支变化而失效**，请以 **插件 README** 中的链接为准。
+
+示意（细节见插件文档）：
 
 ```bash
-# Linux / macOS（脚本从 Gitee 拉取；须指定克隆源为 Gitee，否则脚本内仍默认 GitHub）
-export MEMOK_REPO_URL="https://gitee.com/wik20/memok-ai.git"
-bash <(curl -fsSL https://gitee.com/wik20/memok-ai/raw/main/scripts/install-linux-macos.sh)
+git clone https://github.com/galaxy8691/memok-ai-openclaw.git
+cd memok-ai-openclaw
+# 按插件 README：openclaw plugins install … && openclaw memok setup
 ```
-
-中国大陆网络推荐（默认 Gitee 源码 + npmmirror；可用环境变量改回 GitHub）：
-
-```bash
-bash <(curl -fsSL https://gitee.com/wik20/memok-ai/raw/main/scripts/install-cn-linux-macos.sh)
-```
-
-```powershell
-# Windows PowerShell（与 GitHub 版脚本相同；指定从 Gitee 克隆源码）
-$env:MEMOK_REPO_URL = "https://gitee.com/wik20/memok-ai.git"
-irm https://gitee.com/wik20/memok-ai/raw/main/scripts/install-windows.ps1 | iex
-```
-
-```cmd
-:: Windows CMD（先下载再运行；再设环境变量后执行）
-curl -L -o install-windows.cmd https://gitee.com/wik20/memok-ai/raw/main/scripts/install-windows.cmd
-set MEMOK_REPO_URL=https://gitee.com/wik20/memok-ai.git
-install-windows.cmd
-```
-
-脚本行为：
-
-- 自动执行 `npm install` + `npm run build`
-- 通过 `openclaw plugins install` 自动安装插件
-- 运行 `openclaw memok setup`；成功后尝试执行 `openclaw gateway restart`（失败时回退为 `openclaw restart`）以使配置生效
-- 安装成功后自动删除源码目录（`~/.openclaw/extensions/memok-ai-src`）
-
-常用安装脚本环境变量：
-
-- `MEMOK_PLUGINS_INSTALL_TIMEOUT_SECONDS`（可选；为 `openclaw plugins install` 设置超时秒数，`0` 表示不限制）
-- `MEMOK_PLUGINS_INSTALL_NO_PTY=1`（Linux：跳过基于 `script` 的伪终端包装；默认包装异常时使用）
-- `MEMOK_SKIP_GATEWAY_RESTART=1`（跳过脚本末尾的网关重启步骤）
-- `MEMOK_GATEWAY_RESTART_TIMEOUT_SECONDS`（默认 `120`；Bash 在可用时用 `timeout` 包裹网关重启；PowerShell 用 `Start-Process` + `WaitForExit` 实现同等超时上限）
-- `MEMOK_KEEP_SOURCE=1`（调试时保留源码目录）
-- `MEMOK_REPO_URL_CN`（可选自定义主仓库；**国内安装脚本默认 Gitee**，未设置时为 `https://gitee.com/wik20/memok-ai.git`）
-- `MEMOK_REPO_URL_FALLBACK`（回退仓库，默认 **GitHub**；国内安装脚本在主源失败时使用）
-- `MEMOK_REPO_URL`（**Windows** `install-windows.ps1`：若设置则用于 `git clone`，中文版说明中设为 Gitee）
-- `MEMOK_NPM_REGISTRY`（默认 `https://registry.npmmirror.com`；国内安装脚本）
-
-若 `openclaw plugins install` 已显示成功但进程迟迟不退出（安装脚本停在下一行提示之前），多为 OpenClaw CLI 未结束。**Linux** 上 Bash 脚本可在 `script` 伪终端下运行该命令（可用 `MEMOK_PLUGINS_INSTALL_NO_PTY=1` 关闭）；**Windows PowerShell** 脚本为直接调用，无 PTY 包装。也可 `Ctrl+C` 后若插件文件已就绪，直接执行 `openclaw memok setup`。避免同一插件注册两次（例如同时配置 `memok-ai` 与 `memok-ai-src` 路径）——在 `openclaw.json` 中删除重复项可消除「duplicate plugin id」警告。
-
-如果 setup 报错 `plugins.allow excludes "memok"`，请在 `~/.openclaw/openclaw.json` 的 `plugins.allow` 增加 `"memok"`，然后重试：
-
-```bash
-openclaw memok setup
-```
-
-手动安装备用方案：
-
-```bash
-git clone https://gitee.com/wik20/memok-ai.git
-cd memok-ai
-openclaw plugins install .
-openclaw memok setup
-```
-
-（需要 GitHub 上游时：`git clone https://github.com/galaxy8691/memok-ai.git`。）
-
-向导可配置：
-
-- LLM 供应商 / API Key / 模型预设（可手填覆盖）
-- `plugins.slots.memory` 固定为 `memok-ai`（向导不再询问是否独占）
-- dreaming 定时（dailyAt / cron / timezone）
-
-若在安装脚本之外修改插件或配置，请自行重启网关以便运行中的进程加载新配置（例如 `openclaw gateway restart`）。
 
 ## Dreaming
 
-在代码中从 `memok-ai/bridge` 调用 `dreamingPipeline`，传入 `DreamingPipelineConfig`（见导出类型）。OpenClaw 插件在同一核心函数之上配置定时任务。
+从 **`memok-ai/bridge`** 调用 **`dreamingPipeline`**，传入 **`DreamingPipelineConfig`**（在 `MemokPipelineConfig` 基础上必填 **`dreamLogWarn`**，可选 `maxWords` / `fraction` / `minRuns` / `maxRuns`）。OpenClaw 插件在同一核心函数之上配置定时任务。
 
-`dreamingPipeline` 每次执行结束（成功或失败）都会在 SQLite 的 `dream_logs` 表追加一行。传入单个 `DreamingPipelineConfig`：`MemokPipelineConfig`、必填 `dreamLogWarn`，以及可选的故事调参（`maxWords` / `fraction` / `minRuns` / `maxRuns`）。OpenClaw 插件定时 dreaming 即依赖该核心行为。字段包括：
+### 落库与监控
 
-- `dream_date`
-- `ts`
-- `status`（`ok` / `error`）
-- `log_json`（完整 JSON 结果）
+- 每次执行结束（**成功或失败**）都会在 SQLite **`dream_logs`** 追加一行：`dream_date`、`ts`、`status`（`ok` / `error`）、**`log_json`**（完整 JSON：含 predream 统计、story 汇总；失败时含 `error` 等字段）。
+- 实现 **`dreamLogWarn`**，用于记录或上报**非致命**问题（例如 `dream_logs` 写入失败）；严重错误仍会在记录后抛出。
+
+### 调试建议
+
+1. 只读打开数据库：`SELECT * FROM dream_logs ORDER BY id DESC LIMIT 5;`
+2. 关注 **`status = 'error'`** 行，查看 **`log_json`** 中的错误信息。
+3. 对比多次运行的 **`log_json`**，确认 predream / story 段是否符合预期。
 
 ## 配置优先级说明（OpenClaw 插件）
 
@@ -220,19 +262,23 @@ openclaw memok setup
 
 ## 环境变量
 
-供测试与仍从 `process.env` 读各阶段覆盖项的旧路径参考；库集成方应显式构造 `MemokPipelineConfig`。
+### 谁会读这些变量？
 
-| 变量 | 是否必填 | 说明 |
-| --- | --- | --- |
-| `OPENAI_API_KEY` | 走 env 组装时**必填** | 兼容 OpenAI 的 API Key |
-| `OPENAI_BASE_URL` | 否 | 网关 / 代理 Base URL |
-| `MEMOK_LLM_MODEL` | 否 | 默认 `gpt-4o-mini` |
-| `MEMOK_DB_PATH` | 否 | 默认 `./memok.sqlite` |
-| `MEMOK_LLM_MAX_WORKERS` | 否 | `<=1` 串行；上限 64 |
-| `MEMOK_V2_ARTICLE_SENTENCES_MAX_OUTPUT_TOKENS` | 否 | 默认 8192（有上下限） |
-| `MEMOK_CORE_WORDS_NORMALIZE_MAX_OUTPUT_TOKENS` | 否 | 默认 32768（有上下限） |
-| `MEMOK_SENTENCE_MERGE_MAX_COMPLETION_TOKENS` | 否 | 默认 2048（有上下限） |
-| `MEMOK_SKIP_LLM_STRUCTURED_PARSE` | 否 | `1` / `true` / `yes` / `on` |
+1. **OpenClaw 插件进程** — 可能在组装配置时用 `MEMOK_*` 填默认值（见上一节优先级）。
+2. **本仓库测试 / 遗留路径** — 在未显式传入 `MemokPipelineConfig` 时，仍可能从 `process.env` 读取分阶段覆盖。
+3. **库集成方** — 生产环境应**显式构造 `MemokPipelineConfig`**，**不要依赖**下表作为唯一配置源。
+
+| 变量 | 是否必填 | 存在原因 | 生效时 |
+| --- | --- | --- | --- |
+| `OPENAI_API_KEY` | 走 env 组装时必填 | 调用兼容 OpenAI 的 API | 从环境组装配置时使用。 |
+| `OPENAI_BASE_URL` | 否 | 自建网关 / 代理 | 覆盖默认 OpenAI 主机。 |
+| `MEMOK_LLM_MODEL` | 否 | 快速切换默认模型 | 未在配置对象中指定模型时的回退。 |
+| `MEMOK_DB_PATH` | 否 | 快速默认库路径 | 默认 `./memok.sqlite`（env 组装路径时）。 |
+| `MEMOK_LLM_MAX_WORKERS` | 否 | 限制并行 LLM 调用 | 大于 1 时在文章流水线等阶段启用有界并行。 |
+| `MEMOK_V2_ARTICLE_SENTENCES_MAX_OUTPUT_TOKENS` | 否 | 限制文章句阶段输出 | 有上下限的 token 上限。 |
+| `MEMOK_CORE_WORDS_NORMALIZE_MAX_OUTPUT_TOKENS` | 否 | 限制规范化阶段输出 | 有上下限的 token 上限。 |
+| `MEMOK_SENTENCE_MERGE_MAX_COMPLETION_TOKENS` | 否 | 限制合并补全长度 | 有上下限的 token 上限。 |
+| `MEMOK_SKIP_LLM_STRUCTURED_PARSE` | 否 | 调试 / 容错 | 为真时跳过部分严格结构化解析。 |
 
 各阶段专用模型等环境变量名见源码中 `resolveModel` 等辅助函数。
 
