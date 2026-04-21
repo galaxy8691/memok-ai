@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { openSqlite } from "../../sqlite/openSqlite.js";
+import { selectRows } from "../../sqlite/sqliteHelpers.js";
 import { NormalWordRelevanceBucketsSchema } from "./buildRelevanceBuckets.js";
 
 export const NormalWordLinkFeedbackInputSchema = z
@@ -56,11 +57,12 @@ export function applyNormalWordLinkFeedback(
       let wordIds: number[] = [];
       if (words.length > 0) {
         const placeholders = words.map(() => "?").join(", ");
-        const rows = db
-          .prepare(
+        const rows = selectRows<{ word_id: number }>(
+          db.prepare(
             `SELECT DISTINCT w.id AS word_id FROM words w WHERE w.word IN (${placeholders})`,
-          )
-          .all(...words) as { word_id: number }[];
+          ),
+          ...words,
+        );
         wordIds = [
           ...new Set(
             rows

@@ -1,4 +1,5 @@
 import { openSqlite } from "../../sqlite/openSqlite.js";
+import { selectCount, selectRows } from "../../sqlite/sqliteHelpers.js";
 
 const DEFAULT_MAX_WORDS = 10;
 
@@ -22,17 +23,15 @@ export function sampleWordStrings(
   const db = openSqlite(dbPath, { readonly: true });
   try {
     db.pragma("foreign_keys = ON");
-    const countRow = db.prepare("SELECT COUNT(*) as c FROM words").get() as {
-      c: number | bigint;
-    };
-    const n = Number(countRow.c);
+    const n = selectCount(db.prepare("SELECT COUNT(*) as c FROM words"));
     if (n <= 0) {
       throw new Error("words 表为空，无法抽样");
     }
     const k = Math.min(n, cap);
-    const rows = db
-      .prepare("SELECT word FROM words ORDER BY RANDOM() LIMIT ?")
-      .all(k) as { word: string }[];
+    const rows = selectRows<{ word: string }>(
+      db.prepare("SELECT word FROM words ORDER BY RANDOM() LIMIT ?"),
+      k,
+    );
     return rows.map((r) => r.word);
   } finally {
     db.close();

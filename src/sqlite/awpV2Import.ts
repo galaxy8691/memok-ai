@@ -6,6 +6,7 @@ import {
   AwpV2TupleSchema,
 } from "../article-word-pipeline/v2/schemas.js";
 import { openSqlite } from "./openSqlite.js";
+import { selectExists, selectRow } from "./sqliteHelpers.js";
 
 export function parseAwpV2TupleJson(
   data: unknown,
@@ -42,12 +43,13 @@ function wordNormalLinkExists(
   wordId: number,
   normalId: number,
 ): boolean {
-  const row = db
-    .prepare(
+  return selectExists(
+    db.prepare(
       "SELECT 1 FROM word_to_normal_link WHERE word_id = ? AND normal_id = ?",
-    )
-    .get(wordId, normalId) as Record<string, unknown> | undefined;
-  return row !== undefined;
+    ),
+    wordId,
+    normalId,
+  );
 }
 
 function sentenceNormalLinkExists(
@@ -55,12 +57,13 @@ function sentenceNormalLinkExists(
   sentenceId: number,
   normalId: number,
 ): boolean {
-  const row = db
-    .prepare(
+  return selectExists(
+    db.prepare(
       "SELECT 1 FROM sentence_to_normal_link WHERE sentence_id = ? AND normal_id = ?",
-    )
-    .get(sentenceId, normalId) as Record<string, unknown> | undefined;
-  return row !== undefined;
+    ),
+    sentenceId,
+    normalId,
+  );
 }
 
 export type ImportAwpV2TupleOpts = {
@@ -93,10 +96,11 @@ function normalIdForText(
   if (cache.has(text)) {
     return cache.get(text);
   }
-  const row = db
-    .prepare("SELECT id FROM normal_words WHERE word = ?")
-    .get(text) as { id?: number } | undefined;
-  if (row?.id === undefined) {
+  const row = selectRow<{ id: number }>(
+    db.prepare("SELECT id FROM normal_words WHERE word = ?"),
+    text,
+  );
+  if (row === undefined) {
     return undefined;
   }
   cache.set(text, row.id);

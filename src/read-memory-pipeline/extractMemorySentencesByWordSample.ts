@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { MemokPipelineConfig } from "../memokPipeline.js";
 import { openSqlite } from "../sqlite/openSqlite.js";
+import { selectCount, selectRows } from "../sqlite/sqliteHelpers.js";
 
 /** 经本次 words 抽样、经哪条「词 → 规范词」边连到该句（仅保留抽样顺序下最先命中的那一对） */
 export const WordMatchLinkSchema = z
@@ -133,25 +134,23 @@ export function extractMemorySentencesByWordSample(
   const db = openSqlite(input.dbPath);
   try {
     db.pragma("foreign_keys = ON");
-    const countRow = db.prepare("SELECT COUNT(*) as c FROM words").get() as {
-      c: number | bigint;
-    };
-    const n = Number(countRow.c);
+    const n = selectCount(db.prepare("SELECT COUNT(*) as c FROM words"));
     if (n <= 0) {
       return emptyResponse();
     }
     const k = Math.max(1, Math.round(n * fraction));
-    const sampled = db
-      .prepare("SELECT id FROM words ORDER BY RANDOM() LIMIT ?")
-      .all(k) as { id: number }[];
+    const sampled = selectRows<{ id: number }>(
+      db.prepare("SELECT id FROM words ORDER BY RANDOM() LIMIT ?"),
+      k,
+    );
     if (sampled.length === 0) {
       return emptyResponse();
     }
     const wordIds = sampled.map((w) => w.id);
     const wordRank = new Map<number, number>(wordIds.map((id, i) => [id, i]));
     const placeholders = wordIds.map(() => "?").join(", ");
-    const rows = db
-      .prepare(
+    const rows = selectRows<RawJoinRow>(
+      db.prepare(
         `SELECT DISTINCT s.id, s.sentence, s.weight, s.duration, s.is_short_term,
                 wtn.word_id AS word_id, w.word AS word, nw.word AS normal_word
          FROM word_to_normal_link wtn
@@ -161,8 +160,9 @@ export function extractMemorySentencesByWordSample(
          JOIN sentences s ON s.id = snl.sentence_id
          WHERE wtn.word_id IN (${placeholders})
          ORDER BY RANDOM()`,
-      )
-      .all(...wordIds) as RawJoinRow[];
+      ),
+      ...wordIds,
+    );
 
     if (rows.length === 0) {
       return emptyResponse();

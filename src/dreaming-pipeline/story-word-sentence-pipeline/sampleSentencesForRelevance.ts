@@ -1,4 +1,5 @@
 import { openSqlite } from "../../sqlite/openSqlite.js";
+import { selectCount, selectRows } from "../../sqlite/sqliteHelpers.js";
 
 const DEFAULT_FRACTION = 0.2;
 
@@ -23,17 +24,17 @@ export function sampleSentencesForRelevance(
   const db = openSqlite(dbPath, { readonly: true });
   try {
     db.pragma("foreign_keys = ON");
-    const countRow = db
-      .prepare("SELECT COUNT(*) as c FROM sentences")
-      .get() as { c: number | bigint };
-    const n = Number(countRow.c);
+    const n = selectCount(db.prepare("SELECT COUNT(*) as c FROM sentences"));
     if (n <= 0) {
       throw new Error("sentences 表为空，无法抽样");
     }
     const k = Math.max(1, Math.round(n * fraction));
-    const rows = db
-      .prepare("SELECT id, sentence FROM sentences ORDER BY RANDOM() LIMIT ?")
-      .all(k) as { id: number; sentence: string }[];
+    const rows = selectRows<{ id: number; sentence: string }>(
+      db.prepare(
+        "SELECT id, sentence FROM sentences ORDER BY RANDOM() LIMIT ?",
+      ),
+      k,
+    );
     return rows.map((r) => ({ id: r.id, sentence: r.sentence }));
   } finally {
     db.close();

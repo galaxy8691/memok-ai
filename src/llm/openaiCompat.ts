@@ -2,44 +2,13 @@ import type OpenAI from "openai";
 import { zodResponseFormat } from "openai/helpers/zod";
 import type { z } from "zod";
 
-const ENV_SKIP_STRUCTURED_PARSE = "MEMOK_SKIP_LLM_STRUCTURED_PARSE";
-const ENV_LLM_MAX_WORKERS = "MEMOK_LLM_MAX_WORKERS";
 const MAX_WORKERS_CAP = 64;
 
-export function llmMaxWorkers(): number {
-  const raw = (process.env[ENV_LLM_MAX_WORKERS] ?? "").trim();
-  if (!raw) {
-    return 1;
-  }
-  const n = Number.parseInt(raw, 10);
-  if (!Number.isFinite(n) || n <= 1) {
-    return 1;
-  }
-  return Math.min(n, MAX_WORKERS_CAP);
-}
-
-export function preferJsonObjectOnly(): boolean {
-  const flag = (process.env[ENV_SKIP_STRUCTURED_PARSE] ?? "")
-    .trim()
-    .toLowerCase();
-  if (["1", "true", "yes", "on"].includes(flag)) {
-    return true;
-  }
-  const base = (process.env.OPENAI_BASE_URL ?? "").toLowerCase();
-  return base.includes("deepseek");
-}
-
-export function isDeepseekCompatibleBaseUrl(): boolean {
-  const base = (process.env.OPENAI_BASE_URL ?? "").trim().toLowerCase();
-  return base.includes("deepseek");
-}
-
-/** 显式配置路径：根据 base URL 判断是否走 DeepSeek 兼容分支 */
 export function isDeepseekCompatibleBaseUrlFromUrl(baseUrl?: string): boolean {
   return (baseUrl ?? "").trim().toLowerCase().includes("deepseek");
 }
 
-/** 显式配置路径：是否强制/优先 `json_object`（与 {@link preferJsonObjectOnly} 语义对齐） */
+/** 显式配置路径：是否强制/优先 `json_object` */
 export function preferJsonObjectOnlyFromConfig(lookup: {
   skipLlmStructuredParse?: boolean;
   openaiBaseUrl?: string;
@@ -51,7 +20,7 @@ export function preferJsonObjectOnlyFromConfig(lookup: {
   return isDeepseekCompatibleBaseUrlFromUrl(lookup.openaiBaseUrl);
 }
 
-/** 将配置中的并发上限裁剪为与 {@link llmMaxWorkers} 相同的有效区间 */
+/** 将配置中的并发上限裁剪为有效区间 */
 export function effectiveParallelLlmWorkers(n: number): number {
   if (!Number.isFinite(n) || n <= 1) {
     return 1;
@@ -60,12 +29,15 @@ export function effectiveParallelLlmWorkers(n: number): number {
 }
 
 function isStructuredResponseUnsupported(err: unknown): boolean {
-  const anyErr = err as {
-    status?: number;
-    statusCode?: number;
-    message?: string;
-    error?: { message?: string };
-  };
+  const anyErr =
+    typeof err === "object" && err !== null
+      ? (err as {
+          status?: number;
+          statusCode?: number;
+          message?: string;
+          error?: { message?: string };
+        })
+      : {};
   const status = anyErr.statusCode ?? anyErr.status;
   if (status !== 400) {
     return false;
@@ -184,7 +156,7 @@ export async function runParseOrJson<T>(
     return schema.parse(parsedJson);
   };
 
-  if (preferJsonOverride ?? preferJsonObjectOnly()) {
+  if (preferJsonOverride ?? false) {
     return callJsonObject();
   }
 

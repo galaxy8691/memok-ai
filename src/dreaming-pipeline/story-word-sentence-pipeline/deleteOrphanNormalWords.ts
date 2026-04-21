@@ -1,4 +1,5 @@
 import { openSqlite } from "../../sqlite/openSqlite.js";
+import { selectRows } from "../../sqlite/sqliteHelpers.js";
 
 export type DeleteOrphanNormalWordsResult = {
   count: number;
@@ -16,14 +17,14 @@ export function deleteOrphanNormalWords(
   try {
     db.pragma("foreign_keys = ON");
     const runTx = db.transaction((): DeleteOrphanNormalWordsResult => {
-      const rows = db
-        .prepare(
+      const rows = selectRows<{ id: number }>(
+        db.prepare(
           `SELECT nw.id AS id
            FROM normal_words nw
            WHERE NOT EXISTS (SELECT 1 FROM word_to_normal_link w WHERE w.normal_id = nw.id)
              AND NOT EXISTS (SELECT 1 FROM sentence_to_normal_link s WHERE s.normal_id = nw.id)`,
-        )
-        .all() as { id: number }[];
+        ),
+      );
       const ids = rows
         .map((r) => r.id)
         .filter((id) => Number.isInteger(id) && id > 0);

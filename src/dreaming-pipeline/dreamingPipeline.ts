@@ -99,6 +99,7 @@ export async function dreamingPipeline(
     articleWordImportInitialDuration: input.articleWordImportInitialDuration,
     dreamShortTermToLongTermWeightThreshold:
       input.dreamShortTermToLongTermWeightThreshold,
+    relevanceScoreMaxLlmAttempts: input.relevanceScoreMaxLlmAttempts,
   };
   const dbPath = memokCfg.dbPath;
   const startedAt = new Date().toISOString();

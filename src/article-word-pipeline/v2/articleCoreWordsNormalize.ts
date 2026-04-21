@@ -1,6 +1,5 @@
 import type OpenAI from "openai";
 import {
-  isDeepseekCompatibleBaseUrl,
   isDeepseekCompatibleBaseUrlFromUrl,
   preferJsonObjectOnlyFromConfig,
   runParseOrJson,
@@ -165,7 +164,7 @@ async function articleCoreWordsNormalizeLlm(
       content: userBody + JSON_MODE_USER_SUFFIX_ARTICLE_CORE_WORDS_NORMALIZE,
     },
   ];
-  const deepseek = routing?.deepseek ?? isDeepseekCompatibleBaseUrl();
+  const deepseek = routing?.deepseek ?? false;
   const budget = effectiveNormalizeOutputBudget(deepseek, routing?.tokenCap);
   return runParseOrJson({
     client: oc,

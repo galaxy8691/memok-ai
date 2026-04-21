@@ -1,6 +1,5 @@
 import type OpenAI from "openai";
 import {
-  isDeepseekCompatibleBaseUrl,
   isDeepseekCompatibleBaseUrlFromUrl,
   preferJsonObjectOnlyFromConfig,
   runParseOrJson,
@@ -164,7 +163,7 @@ async function articleMemorySentencesLlm(
       content: userBody + JSON_MODE_USER_SUFFIX_ARTICLE_SENTENCES,
     },
   ];
-  const deepseek = routing?.deepseek ?? isDeepseekCompatibleBaseUrl();
+  const deepseek = routing?.deepseek ?? false;
   const budget = effectiveOutputBudget(deepseek, routing?.tokenCap);
   const raw = await runParseOrJson({
     client: oc,

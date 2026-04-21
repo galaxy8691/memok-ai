@@ -3,63 +3,21 @@ import { z } from "zod";
 import {
   isDeepseekCompatibleBaseUrlFromUrl,
   preferJsonObjectOnlyFromConfig,
-  runParseOrJson,
 } from "../../llm/openaiCompat.js";
 import {
   createOpenAIClient,
   type MemokPipelineConfig,
 } from "../../memokPipeline.js";
-
-const DEFAULT_MAX_OUTPUT = 4096;
-const DEEPSEEK_CHAT_MAX_TOKENS_CAP = 8192;
-const MAX_SENTENCES_PER_BATCH = 50;
-const DEFAULT_MAX_LLM_ATTEMPTS = 5;
-const HARD_CAP_LLM_ATTEMPTS = 32;
-
-function maxLlmAttempts(): number {
-  const raw = (process.env.MEMOK_RELEVANCE_SCORE_MAX_LLM_ATTEMPTS ?? "").trim();
-  if (!raw) {
-    return DEFAULT_MAX_LLM_ATTEMPTS;
-  }
-  const n = Number.parseInt(raw, 10);
-  if (!Number.isFinite(n) || n < 1) {
-    return DEFAULT_MAX_LLM_ATTEMPTS;
-  }
-  return Math.min(n, HARD_CAP_LLM_ATTEMPTS);
-}
-
-function clampScore0to100(n: number): number {
-  const r = Math.round(Number(n));
-  if (!Number.isFinite(r)) {
-    return 50;
-  }
-  return Math.max(0, Math.min(100, r));
-}
-
-export function repairSentenceRelevanceOutput(
-  input: SentenceRelevanceInput,
-  output: SentenceRelevanceOutput,
-): SentenceRelevanceOutput {
-  const byId = new Map<number, number>();
-  for (const row of output.sentences) {
-    if (Number.isFinite(row.id)) {
-      byId.set(row.id, clampScore0to100(row.score));
-    }
-  }
-  let fallback = 50;
-  if (byId.size > 0) {
-    let sum = 0;
-    for (const v of byId.values()) {
-      sum += v;
-    }
-    fallback = Math.round(sum / byId.size);
-  }
-  const sentences = input.sentences.map(({ id }) => ({
-    id,
-    score: byId.has(id) ? (byId.get(id) as number) : fallback,
-  }));
-  return { sentences };
-}
+import {
+  clampScore0to100,
+  computeFallbackScore,
+  DEFAULT_MAX_LLM_ATTEMPTS,
+  effectiveOutputBudget,
+  MAX_ITEMS_PER_BATCH,
+  repairRelevanceScores,
+  scoreOneBatchWithRetry,
+  validateRelevanceIds,
+} from "./relevanceScoreShared.js";
 
 export const SentenceRelevanceInputSchema = z
   .object({
@@ -90,15 +48,23 @@ export type SentenceRelevanceOutput = z.infer<
   typeof SentenceRelevanceOutputSchema
 >;
 
-function effectiveOutputBudget(
-  forDeepseek: boolean,
-  explicit?: number,
-): number {
-  const cap = explicit ?? DEFAULT_MAX_OUTPUT;
-  if (forDeepseek) {
-    return Math.max(1, Math.min(cap, DEEPSEEK_CHAT_MAX_TOKENS_CAP));
+export function repairSentenceRelevanceOutput(
+  input: SentenceRelevanceInput,
+  output: SentenceRelevanceOutput,
+): SentenceRelevanceOutput {
+  const byId = new Map<number, number>();
+  for (const row of output.sentences) {
+    if (Number.isFinite(row.id)) {
+      byId.set(row.id, clampScore0to100(row.score));
+    }
   }
-  return Math.max(256, Math.min(cap, 128_000));
+  const fallback = computeFallbackScore(byId);
+  const sentences = repairRelevanceScores(
+    input.sentences.map((s) => s.id),
+    byId,
+    fallback,
+  );
+  return { sentences };
 }
 
 export const SYSTEM_PROMPT_SENTENCE_RELEVANCE = `你是相关性评分器。用户会给你一个 JSON 对象，形状为：
@@ -122,26 +88,7 @@ export function validateSentenceRelevanceOutput(
   input: SentenceRelevanceInput,
   output: SentenceRelevanceOutput,
 ): SentenceRelevanceOutput {
-  if (output.sentences.length !== input.sentences.length) {
-    throw new Error(
-      `相关性评分条数不一致: input=${input.sentences.length}, output=${output.sentences.length}`,
-    );
-  }
-  const inIds = new Set(input.sentences.map((s) => s.id));
-  const outIds = new Set(output.sentences.map((s) => s.id));
-  if (inIds.size !== outIds.size) {
-    throw new Error("相关性评分 id 数量不一致");
-  }
-  for (const id of inIds) {
-    if (!outIds.has(id)) {
-      throw new Error(`相关性评分缺少输入 id=${id}`);
-    }
-  }
-  for (const id of outIds) {
-    if (!inIds.has(id)) {
-      throw new Error(`相关性评分出现未输入 id=${id}`);
-    }
-  }
+  validateRelevanceIds(input.sentences, output.sentences, "sentences");
   return output;
 }
 
@@ -153,12 +100,11 @@ async function scoreOneBatch(
     budget: number;
     deepseek: boolean;
     preferJsonObjectOnly?: boolean;
+    maxAttempts: number;
   },
 ): Promise<SentenceRelevanceOutput> {
   const userBody = `请对以下输入逐句评分并按指定 JSON 输出：\n${JSON.stringify(parsedInput)}`;
-  const parseArgs = {
-    client: opts.client,
-    model: opts.model,
+  const messages = {
     messagesParse: [
       { role: "system" as const, content: SYSTEM_PROMPT_SENTENCE_RELEVANCE },
       { role: "user" as const, content: userBody },
@@ -173,35 +119,21 @@ async function scoreOneBatch(
         content: `${userBody}\n\n只输出 JSON，不要代码围栏。`,
       },
     ],
-    schema: SentenceRelevanceOutputSchema,
-    responseName: "SentenceRelevanceOutput",
-    ...(opts.deepseek
-      ? { maxTokens: opts.budget }
-      : { maxCompletionTokens: opts.budget }),
-    ...(opts.preferJsonObjectOnly !== undefined
-      ? { preferJsonObjectOnly: opts.preferJsonObjectOnly }
-      : {}),
   };
 
-  const attempts = maxLlmAttempts();
-  let lastError: unknown;
-  let lastRaw: SentenceRelevanceOutput | undefined;
-  for (let attempt = 0; attempt < attempts; attempt += 1) {
-    const raw = await runParseOrJson(parseArgs);
-    lastRaw = raw;
-    try {
-      return validateSentenceRelevanceOutput(parsedInput, raw);
-    } catch (e) {
-      lastError = e;
-    }
-  }
-  if (lastRaw) {
-    return validateSentenceRelevanceOutput(
-      parsedInput,
-      repairSentenceRelevanceOutput(parsedInput, lastRaw),
-    );
-  }
-  throw lastError instanceof Error ? lastError : new Error(String(lastError));
+  return scoreOneBatchWithRetry({
+    client: opts.client,
+    model: opts.model,
+    budget: opts.budget,
+    deepseek: opts.deepseek,
+    preferJsonObjectOnly: opts.preferJsonObjectOnly,
+    messages,
+    schema: SentenceRelevanceOutputSchema,
+    responseName: "SentenceRelevanceOutput",
+    validate: (raw) => validateSentenceRelevanceOutput(parsedInput, raw),
+    repair: (raw) => repairSentenceRelevanceOutput(parsedInput, raw),
+    maxAttempts: opts.maxAttempts,
+  });
 }
 
 export async function scoreSentenceRelevance(
@@ -223,25 +155,24 @@ export async function scoreSentenceRelevance(
     opts.maxTokens ?? config.articleSentencesMaxOutputTokens,
   );
   const preferJson = preferJsonObjectOnlyFromConfig(config);
-  if (parsedInput.sentences.length <= MAX_SENTENCES_PER_BATCH) {
+  const maxAttempts =
+    config.relevanceScoreMaxLlmAttempts ?? DEFAULT_MAX_LLM_ATTEMPTS;
+  if (parsedInput.sentences.length <= MAX_ITEMS_PER_BATCH) {
     return scoreOneBatch(parsedInput, {
       client,
       model,
       budget,
       deepseek,
       preferJsonObjectOnly: preferJson,
+      maxAttempts,
     });
   }
 
   const merged: SentenceRelevanceOutput["sentences"] = [];
-  for (
-    let i = 0;
-    i < parsedInput.sentences.length;
-    i += MAX_SENTENCES_PER_BATCH
-  ) {
+  for (let i = 0; i < parsedInput.sentences.length; i += MAX_ITEMS_PER_BATCH) {
     const chunkInput: SentenceRelevanceInput = {
       story: parsedInput.story,
-      sentences: parsedInput.sentences.slice(i, i + MAX_SENTENCES_PER_BATCH),
+      sentences: parsedInput.sentences.slice(i, i + MAX_ITEMS_PER_BATCH),
     };
     const chunkOut = await scoreOneBatch(chunkInput, {
       client,
@@ -249,6 +180,7 @@ export async function scoreSentenceRelevance(
       budget,
       deepseek,
       preferJsonObjectOnly: preferJson,
+      maxAttempts,
     });
     merged.push(...chunkOut.sentences);
   }

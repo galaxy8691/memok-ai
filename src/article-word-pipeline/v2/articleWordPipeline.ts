@@ -1,8 +1,5 @@
 import OpenAI from "openai";
-import {
-  effectiveParallelLlmWorkers,
-  llmMaxWorkers,
-} from "../../llm/openaiCompat.js";
+import { effectiveParallelLlmWorkers } from "../../llm/openaiCompat.js";
 import {
   buildPipelineContext,
   type MemokPipelineConfig,
@@ -35,7 +32,9 @@ export async function articleWordPipelineV2(
 
   const maxParallel = opts?.ctx
     ? effectiveParallelLlmWorkers(opts.ctx.config.llmMaxWorkers)
-    : llmMaxWorkers();
+    : opts?.config
+      ? effectiveParallelLlmWorkers(opts.config.llmMaxWorkers)
+      : 1;
 
   if (opts?.ctx?.client || opts?.client || maxParallel <= 1) {
     if (opts?.ctx) {

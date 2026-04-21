@@ -29,6 +29,11 @@ export type MemokPipelineConfig = {
    * 低于该值且 `duration` 耗尽则删除。缺省为 **7**（与历史硬编码一致）。
    */
   dreamShortTermToLongTermWeightThreshold?: number;
+  /**
+   * 相关性评分（sentence / normal_word）LLM 调用失败时的最大重试次数；
+   * 缺省为 **5**，上限 **32**。
+   */
+  relevanceScoreMaxLlmAttempts?: number;
 };
 
 export type PipelineLlmContext = {

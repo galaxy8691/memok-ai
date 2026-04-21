@@ -10,7 +10,7 @@ function sumSentenceLinkFeedback(
   rows: ApplyResultLinkFeedbackResult[],
 ): ApplyResultLinkFeedbackResult {
   const z = (k: keyof ApplyResultLinkFeedbackResult) =>
-    rows.reduce((acc, r) => acc + r[k], 0 as number);
+    rows.reduce((acc: number, r) => acc + r[k], 0);
   return {
     matchedNormalIds: z("matchedNormalIds"),
     updatedSentenceRows: z("updatedSentenceRows"),
@@ -28,7 +28,7 @@ function sumNormalWordLinkFeedback(
   rows: ApplyNormalWordLinkFeedbackResult[],
 ): ApplyNormalWordLinkFeedbackResult {
   const z = (k: keyof ApplyNormalWordLinkFeedbackResult) =>
-    rows.reduce((acc, r) => acc + r[k], 0 as number);
+    rows.reduce((acc: number, r) => acc + r[k], 0);
   return {
     matchedWordIds: z("matchedWordIds"),
     updatedPlus: z("updatedPlus"),

@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { z } from "zod";
 import type { MemokPipelineConfig } from "../../memokPipeline.js";
 import { openSqlite } from "../../sqlite/openSqlite.js";
+import { selectRow, selectRows } from "../../sqlite/sqliteHelpers.js";
 import { mergeSentenceText } from "./mergeSentenceText.js";
 import { SentenceRelevanceOutputSchema } from "./scoreSentenceRelevance.js";
 
@@ -69,20 +70,21 @@ export async function mergeOrphanSentencesIntoTopScored(
   const db = openSqlite(dbPath);
   try {
     db.pragma("foreign_keys = ON");
-    const topRow = db
-      .prepare("SELECT id, sentence FROM sentences WHERE id = ?")
-      .get(topSentenceId) as { id: number; sentence: string } | undefined;
+    const topRow = selectRow<{ id: number; sentence: string }>(
+      db.prepare("SELECT id, sentence FROM sentences WHERE id = ?"),
+      topSentenceId,
+    );
     if (!topRow) {
       throw new Error(`最高分句子不存在于数据库: id=${topSentenceId}`);
     }
-    const orphanRows = db
-      .prepare(
+    const orphanRows = selectRows<{ id: number; sentence: string }>(
+      db.prepare(
         `SELECT s.id, s.sentence
          FROM sentences s
          LEFT JOIN sentence_to_normal_link snl ON snl.sentence_id = s.id
          WHERE snl.sentence_id IS NULL`,
-      )
-      .all() as { id: number; sentence: string }[];
+      ),
+    );
     const orphans = orphanRows.filter((r) => r.id !== topSentenceId);
     if (orphans.length === 0) {
       return {

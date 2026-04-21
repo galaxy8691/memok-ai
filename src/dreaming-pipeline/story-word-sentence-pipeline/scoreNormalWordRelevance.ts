@@ -3,65 +3,21 @@ import { z } from "zod";
 import {
   isDeepseekCompatibleBaseUrlFromUrl,
   preferJsonObjectOnlyFromConfig,
-  runParseOrJson,
 } from "../../llm/openaiCompat.js";
 import {
   createOpenAIClient,
   type MemokPipelineConfig,
 } from "../../memokPipeline.js";
-
-const DEFAULT_MAX_OUTPUT = 4096;
-const DEEPSEEK_CHAT_MAX_TOKENS_CAP = 8192;
-const MAX_ITEMS_PER_BATCH = 50;
-/** Strict LLM attempts before coercing output to match input ids (default 5). */
-const DEFAULT_MAX_LLM_ATTEMPTS = 5;
-const HARD_CAP_LLM_ATTEMPTS = 32;
-
-function maxLlmAttempts(): number {
-  const raw = (process.env.MEMOK_RELEVANCE_SCORE_MAX_LLM_ATTEMPTS ?? "").trim();
-  if (!raw) {
-    return DEFAULT_MAX_LLM_ATTEMPTS;
-  }
-  const n = Number.parseInt(raw, 10);
-  if (!Number.isFinite(n) || n < 1) {
-    return DEFAULT_MAX_LLM_ATTEMPTS;
-  }
-  return Math.min(n, HARD_CAP_LLM_ATTEMPTS);
-}
-
-function clampScore0to100(n: number): number {
-  const r = Math.round(Number(n));
-  if (!Number.isFinite(r)) {
-    return 50;
-  }
-  return Math.max(0, Math.min(100, r));
-}
-
-/** Align model output to input ids; missing ids get the mean of returned scores or 50. */
-export function repairNormalWordRelevanceOutput(
-  input: NormalWordRelevanceInput,
-  output: NormalWordRelevanceOutput,
-): NormalWordRelevanceOutput {
-  const byId = new Map<number, number>();
-  for (const row of output.normalWords) {
-    if (Number.isFinite(row.id)) {
-      byId.set(row.id, clampScore0to100(row.score));
-    }
-  }
-  let fallback = 50;
-  if (byId.size > 0) {
-    let sum = 0;
-    for (const v of byId.values()) {
-      sum += v;
-    }
-    fallback = Math.round(sum / byId.size);
-  }
-  const normalWords = input.normalWords.map(({ id }) => ({
-    id,
-    score: byId.has(id) ? (byId.get(id) as number) : fallback,
-  }));
-  return { normalWords };
-}
+import {
+  clampScore0to100,
+  computeFallbackScore,
+  DEFAULT_MAX_LLM_ATTEMPTS,
+  effectiveOutputBudget,
+  MAX_ITEMS_PER_BATCH,
+  repairRelevanceScores,
+  scoreOneBatchWithRetry,
+  validateRelevanceIds,
+} from "./relevanceScoreShared.js";
 
 export const NormalWordRelevanceInputSchema = z
   .object({
@@ -91,15 +47,23 @@ export type NormalWordRelevanceOutput = z.infer<
   typeof NormalWordRelevanceOutputSchema
 >;
 
-function effectiveOutputBudget(
-  forDeepseek: boolean,
-  explicit?: number,
-): number {
-  const cap = explicit ?? DEFAULT_MAX_OUTPUT;
-  if (forDeepseek) {
-    return Math.max(1, Math.min(cap, DEEPSEEK_CHAT_MAX_TOKENS_CAP));
+export function repairNormalWordRelevanceOutput(
+  input: NormalWordRelevanceInput,
+  output: NormalWordRelevanceOutput,
+): NormalWordRelevanceOutput {
+  const byId = new Map<number, number>();
+  for (const row of output.normalWords) {
+    if (Number.isFinite(row.id)) {
+      byId.set(row.id, clampScore0to100(row.score));
+    }
   }
-  return Math.max(256, Math.min(cap, 128_000));
+  const fallback = computeFallbackScore(byId);
+  const normalWords = repairRelevanceScores(
+    input.normalWords.map((s) => s.id),
+    byId,
+    fallback,
+  );
+  return { normalWords };
 }
 
 export const SYSTEM_PROMPT_NORMAL_WORD_RELEVANCE = `你是相关性评分器。用户会给你一个 JSON 对象，形状为：
@@ -123,26 +87,7 @@ export function validateNormalWordRelevanceOutput(
   input: NormalWordRelevanceInput,
   output: NormalWordRelevanceOutput,
 ): NormalWordRelevanceOutput {
-  if (output.normalWords.length !== input.normalWords.length) {
-    throw new Error(
-      `normal_words 相关性评分条数不一致: input=${input.normalWords.length}, output=${output.normalWords.length}`,
-    );
-  }
-  const inIds = new Set(input.normalWords.map((s) => s.id));
-  const outIds = new Set(output.normalWords.map((s) => s.id));
-  if (inIds.size !== outIds.size) {
-    throw new Error("normal_words 相关性评分 id 数量不一致");
-  }
-  for (const id of inIds) {
-    if (!outIds.has(id)) {
-      throw new Error(`normal_words 相关性评分缺少输入 id=${id}`);
-    }
-  }
-  for (const id of outIds) {
-    if (!inIds.has(id)) {
-      throw new Error(`normal_words 相关性评分出现未输入 id=${id}`);
-    }
-  }
+  validateRelevanceIds(input.normalWords, output.normalWords, "normal_words");
   return output;
 }
 
@@ -154,12 +99,11 @@ async function scoreOneBatch(
     budget: number;
     deepseek: boolean;
     preferJsonObjectOnly?: boolean;
+    maxAttempts: number;
   },
 ): Promise<NormalWordRelevanceOutput> {
   const userBody = `请对以下输入逐词评分并按指定 JSON 输出：\n${JSON.stringify(parsedInput)}`;
-  const parseArgs = {
-    client: opts.client,
-    model: opts.model,
+  const messages = {
     messagesParse: [
       { role: "system" as const, content: SYSTEM_PROMPT_NORMAL_WORD_RELEVANCE },
       { role: "user" as const, content: userBody },
@@ -174,35 +118,21 @@ async function scoreOneBatch(
         content: `${userBody}\n\n只输出 JSON，不要代码围栏。`,
       },
     ],
-    schema: NormalWordRelevanceOutputSchema,
-    responseName: "NormalWordRelevanceOutput",
-    ...(opts.deepseek
-      ? { maxTokens: opts.budget }
-      : { maxCompletionTokens: opts.budget }),
-    ...(opts.preferJsonObjectOnly !== undefined
-      ? { preferJsonObjectOnly: opts.preferJsonObjectOnly }
-      : {}),
   };
 
-  const attempts = maxLlmAttempts();
-  let lastError: unknown;
-  let lastRaw: NormalWordRelevanceOutput | undefined;
-  for (let attempt = 0; attempt < attempts; attempt += 1) {
-    const raw = await runParseOrJson(parseArgs);
-    lastRaw = raw;
-    try {
-      return validateNormalWordRelevanceOutput(parsedInput, raw);
-    } catch (e) {
-      lastError = e;
-    }
-  }
-  if (lastRaw) {
-    return validateNormalWordRelevanceOutput(
-      parsedInput,
-      repairNormalWordRelevanceOutput(parsedInput, lastRaw),
-    );
-  }
-  throw lastError instanceof Error ? lastError : new Error(String(lastError));
+  return scoreOneBatchWithRetry({
+    client: opts.client,
+    model: opts.model,
+    budget: opts.budget,
+    deepseek: opts.deepseek,
+    preferJsonObjectOnly: opts.preferJsonObjectOnly,
+    messages,
+    schema: NormalWordRelevanceOutputSchema,
+    responseName: "NormalWordRelevanceOutput",
+    validate: (raw) => validateNormalWordRelevanceOutput(parsedInput, raw),
+    repair: (raw) => repairNormalWordRelevanceOutput(parsedInput, raw),
+    maxAttempts: opts.maxAttempts,
+  });
 }
 
 export async function scoreNormalWordRelevance(
@@ -224,6 +154,8 @@ export async function scoreNormalWordRelevance(
     opts.maxTokens ?? config.articleSentencesMaxOutputTokens,
   );
   const preferJson = preferJsonObjectOnlyFromConfig(config);
+  const maxAttempts =
+    config.relevanceScoreMaxLlmAttempts ?? DEFAULT_MAX_LLM_ATTEMPTS;
   if (parsedInput.normalWords.length <= MAX_ITEMS_PER_BATCH) {
     return scoreOneBatch(parsedInput, {
       client,
@@ -231,6 +163,7 @@ export async function scoreNormalWordRelevance(
       budget,
       deepseek,
       preferJsonObjectOnly: preferJson,
+      maxAttempts,
     });
   }
 
@@ -250,6 +183,7 @@ export async function scoreNormalWordRelevance(
       budget,
       deepseek,
       preferJsonObjectOnly: preferJson,
+      maxAttempts,
     });
     merged.push(...chunkOut.normalWords);
   }

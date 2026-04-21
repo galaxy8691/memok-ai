@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import Database from "better-sqlite3";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { sampleNormalWordsForRelevance } from "../src/dreaming-pipeline/story-word-sentence-pipeline/sampleNormalWordsForRelevance.js";
 
 function makeDb(root: string): string {
@@ -20,21 +20,6 @@ function makeDb(root: string): string {
 }
 
 describe("sampleNormalWordsForRelevance", () => {
-  let prevAttempts: string | undefined;
-
-  beforeEach(() => {
-    prevAttempts = process.env.MEMOK_RELEVANCE_SCORE_MAX_LLM_ATTEMPTS;
-    process.env.MEMOK_RELEVANCE_SCORE_MAX_LLM_ATTEMPTS = "1";
-  });
-
-  afterEach(() => {
-    if (prevAttempts === undefined) {
-      delete process.env.MEMOK_RELEVANCE_SCORE_MAX_LLM_ATTEMPTS;
-    } else {
-      process.env.MEMOK_RELEVANCE_SCORE_MAX_LLM_ATTEMPTS = prevAttempts;
-    }
-  });
-
   it("samples about fraction of rows with at least 1", () => {
     const root = mkdtempSync(join(tmpdir(), "memok-nw-"));
     try {

@@ -29,4 +29,5 @@ articles/
 *.sqlite
 *.sqlite.clean
 tmp/
+test-db/
 .npmrc

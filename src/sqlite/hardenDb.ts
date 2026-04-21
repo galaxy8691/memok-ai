@@ -4,6 +4,7 @@ import {
   memokWordToNormalLinkHardenDdl,
 } from "./memokSqliteDdl.js";
 import { openSqlite } from "./openSqlite.js";
+import { selectExists } from "./sqliteHelpers.js";
 
 /**
  * 数据库结构加固（幂等）：与 `memokSqliteDdl` 中 `memokInitDatabaseDdl` 的 link 段语义相同，
@@ -12,10 +13,10 @@ import { openSqlite } from "./openSqlite.js";
 export function hardenDb(db: Database.Database): void {
   db.pragma("foreign_keys = ON");
   const tableExists = (tableName: string): boolean => {
-    const row = db
-      .prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name = ?")
-      .get(tableName) as { 1?: number } | undefined;
-    return row !== undefined;
+    return selectExists(
+      db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name = ?"),
+      tableName,
+    );
   };
   const runTx = db.transaction(() => {
     if (tableExists("word_to_normal_link")) {

@@ -1,5 +1,6 @@
 import type Database from "better-sqlite3";
 import { openSqlite } from "../../sqlite/openSqlite.js";
+import { selectExists } from "../../sqlite/sqliteHelpers.js";
 
 const DEFAULT_SHORT_TERM_TO_LONG_TERM_WEIGHT = 7;
 
@@ -21,10 +22,10 @@ export type PredreamDecayResult = {
 };
 
 function tableExists(db: Database.Database, name: string): boolean {
-  const row = db
-    .prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?")
-    .get(name) as { 1?: number } | undefined;
-  return row !== undefined;
+  return selectExists(
+    db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?"),
+    name,
+  );
 }
 
 function resolveWeightThreshold(raw: number | undefined): number {
