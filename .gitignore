@@ -25,6 +25,8 @@ Thumbs.db
 .idea/
 .vscode/
 articles/
-memok.sqlite
+*.db
+*.sqlite
+*.sqlite.clean
 tmp/
 .npmrc

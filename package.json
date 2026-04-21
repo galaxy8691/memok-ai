@@ -15,16 +15,22 @@
     }
   },
   "scripts": {
-    "prepare": "npm run build",
-    "build": "tsc -p tsconfig.json",
+    "build": "rm -rf dist && tsc -p tsconfig.json",
     "ci": "npm run lint && npm run build && npm run test",
     "lint": "biome check .",
     "format": "biome format --write .",
     "test": "vitest run"
   },
   "keywords": [],
-  "author": "",
+  "author": "memok-ai contributors",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/galaxy8691/memok-ai.git"
+  },
+  "engines": {
+    "node": ">=20"
+  },
   "publishConfig": {
     "registry": "https://registry.npmjs.org/"
   },
