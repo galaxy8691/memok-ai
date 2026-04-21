@@ -95,6 +95,10 @@ export async function dreamingPipeline(
     coreWordsNormalizeMaxOutputTokens: input.coreWordsNormalizeMaxOutputTokens,
     sentenceMergeMaxCompletionTokens: input.sentenceMergeMaxCompletionTokens,
     skipLlmStructuredParse: input.skipLlmStructuredParse,
+    articleWordImportInitialWeight: input.articleWordImportInitialWeight,
+    articleWordImportInitialDuration: input.articleWordImportInitialDuration,
+    dreamShortTermToLongTermWeightThreshold:
+      input.dreamShortTermToLongTermWeightThreshold,
   };
   const dbPath = memokCfg.dbPath;
   const startedAt = new Date().toISOString();
@@ -103,7 +107,10 @@ export async function dreamingPipeline(
   const storyOpts = storyOptsFromDreamingInput(input, ctx);
 
   try {
-    const predream = runPredreamDecayFromDb(dbPath);
+    const predream = runPredreamDecayFromDb(dbPath, {
+      shortTermToLongTermWeightThreshold:
+        input.dreamShortTermToLongTermWeightThreshold,
+    });
     const storyWordSentencePipeline = await runStoryWordSentencePipelineFromDb(
       dbPath,
       storyOpts,

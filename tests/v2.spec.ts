@@ -88,4 +88,37 @@ describe("v2 pure logic", () => {
     expect(links.c).toBe(1);
     db.close();
   });
+
+  it("import respects initialSentenceWeight and initialSentenceDuration", () => {
+    const db = new Database(":memory:");
+    db.exec(`
+      CREATE TABLE words (id INTEGER PRIMARY KEY AUTOINCREMENT, word TEXT UNIQUE);
+      CREATE TABLE normal_words (id INTEGER PRIMARY KEY AUTOINCREMENT, word TEXT UNIQUE);
+      CREATE TABLE word_to_normal_link (word_id INTEGER, normal_id INTEGER, weight INTEGER);
+      CREATE TABLE sentences (id INTEGER PRIMARY KEY AUTOINCREMENT, sentence TEXT, weight INTEGER, duration INTEGER, last_edit_date TEXT, is_short_term INTEGER, duration_change_times INTEGER NOT NULL DEFAULT 0);
+      CREATE TABLE sentence_to_normal_link (normal_id INTEGER, sentence_id INTEGER, weight INTEGER);
+    `);
+    importAwpV2Tuple(
+      db,
+      {
+        sentence_core: [{ sentence: "Phobos", core_words: ["火卫一"] }],
+      },
+      {
+        nomalized: [{ original_text: "火卫一", new_text: "火卫一" }],
+      },
+      {
+        today: "2026-04-14",
+        initialSentenceWeight: 3,
+        initialSentenceDuration: 14,
+      },
+    );
+    const row = db
+      .prepare(
+        "SELECT weight, duration FROM sentences WHERE sentence = 'Phobos'",
+      )
+      .get() as { weight: number; duration: number };
+    expect(row.weight).toBe(3);
+    expect(row.duration).toBe(14);
+    db.close();
+  });
 });

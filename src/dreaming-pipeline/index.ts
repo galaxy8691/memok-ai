@@ -7,6 +7,7 @@ export {
 } from "./dreamingPipeline.js";
 export {
   type PredreamDecayResult,
+  type RunPredreamDecayFromDbOpts,
   runPredreamDecayFromDb,
 } from "./predream-pipeline/index.js";
 export {

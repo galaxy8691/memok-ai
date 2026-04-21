@@ -16,6 +16,19 @@ export type MemokPipelineConfig = {
   coreWordsNormalizeMaxOutputTokens: number;
   sentenceMergeMaxCompletionTokens: number;
   skipLlmStructuredParse?: boolean;
+  /**
+   * `importAwpV2Tuple` / `articleWordPipeline` 新插入 `sentences` 行的初始 `weight`；缺省为 **1**。
+   */
+  articleWordImportInitialWeight?: number;
+  /**
+   * 同上路径新插入行的初始 `duration`；缺省为 **7**。
+   */
+  articleWordImportInitialDuration?: number;
+  /**
+   * `predream`（`runPredreamDecayFromDb`）中：短期句当 `weight >=` 该值时升格为长期（`is_short_term = 0`）；
+   * 低于该值且 `duration` 耗尽则删除。缺省为 **7**（与历史硬编码一致）。
+   */
+  dreamShortTermToLongTermWeightThreshold?: number;
 };
 
 export type PipelineLlmContext = {

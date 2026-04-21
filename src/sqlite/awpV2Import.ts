@@ -63,6 +63,28 @@ function sentenceNormalLinkExists(
   return row !== undefined;
 }
 
+export type ImportAwpV2TupleOpts = {
+  today?: string;
+  /** 新句 `sentences.weight`；缺省 1 */
+  initialSentenceWeight?: number;
+  /** 新句 `sentences.duration`；缺省 7 */
+  initialSentenceDuration?: number;
+};
+
+function positiveIntOrDefault(
+  raw: number | undefined,
+  fallback: number,
+  field: string,
+): number {
+  if (raw === undefined) {
+    return fallback;
+  }
+  if (typeof raw !== "number" || !Number.isInteger(raw) || raw < 1) {
+    throw new Error(`${field} must be an integer >= 1`);
+  }
+  return raw;
+}
+
 function normalIdForText(
   db: Database.Database,
   text: string,
@@ -85,10 +107,20 @@ export function importAwpV2Tuple(
   db: Database.Database,
   sentenceCore: ArticleSentenceCoreCombinedData,
   normalized: ArticleCoreWordsNomalizedData,
-  opts?: { today?: string },
+  opts?: ImportAwpV2TupleOpts,
 ): void {
   db.pragma("foreign_keys = ON");
   const dateStr = opts?.today ?? new Date().toISOString().slice(0, 10);
+  const initialSentenceWeight = positiveIntOrDefault(
+    opts?.initialSentenceWeight,
+    1,
+    "initialSentenceWeight",
+  );
+  const initialSentenceDuration = positiveIntOrDefault(
+    opts?.initialSentenceDuration,
+    7,
+    "initialSentenceDuration",
+  );
   const wordsCache = new Map<string, number>();
   const normalsCache = new Map<string, number>();
 
@@ -117,9 +149,9 @@ export function importAwpV2Tuple(
     }
     const info = db
       .prepare(
-        "INSERT INTO sentences (sentence, weight, duration, last_edit_date, is_short_term, duration_change_times) VALUES (?, 1, 7, ?, 1, 0)",
+        "INSERT INTO sentences (sentence, weight, duration, last_edit_date, is_short_term, duration_change_times) VALUES (?, ?, ?, ?, 1, 0)",
       )
-      .run(sentence, dateStr);
+      .run(sentence, initialSentenceWeight, initialSentenceDuration, dateStr);
     const sentenceId = Number(info.lastInsertRowid);
     const seen = new Set<number>();
     for (const w of item.core_words) {
@@ -149,7 +181,7 @@ export function importAwpV2Tuple(
 export function importAwpV2TupleFromPaths(
   jsonPath: string,
   dbPath: string,
-  opts?: { today?: string },
+  opts?: ImportAwpV2TupleOpts,
 ): void {
   const raw = JSON.parse(readFileSync(jsonPath, "utf-8"));
   const [sc, nm] = parseAwpV2TupleJson(raw);

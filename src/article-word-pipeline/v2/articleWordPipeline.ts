@@ -151,7 +151,11 @@ export async function articleWordPipeline(
   const db = openSqlite(options.dbPath);
   try {
     const tx = db.transaction(() => {
-      importAwpV2Tuple(db, combined, normalized, { today: options.today });
+      importAwpV2Tuple(db, combined, normalized, {
+        today: options.today,
+        initialSentenceWeight: options.articleWordImportInitialWeight,
+        initialSentenceDuration: options.articleWordImportInitialDuration,
+      });
     });
     tx();
   } finally {
